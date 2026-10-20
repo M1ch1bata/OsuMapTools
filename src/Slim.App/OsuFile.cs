@@ -207,6 +207,40 @@ namespace Slim
             File.WriteAllText(path, Serialize(), new UTF8Encoding(false));
         }
 
+        /// <summary>BPM of the timing segment that covers the most time (matches osu!'s displayed main BPM).</summary>
+        public double DominantBpm()
+        {
+            var points = TimingPoints
+                .Where(tp => tp.BeatLength > 0 && !double.IsNaN(tp.BeatLength) && !double.IsInfinity(tp.BeatLength))
+                .OrderBy(tp => tp.Time)
+                .ToList();
+            if (points.Count == 0) return 120;
+
+            int endTime = 0;
+            foreach (var o in Objects)
+            {
+                if (o.Time > endTime) endTime = o.Time;
+                if (o.EndTime.HasValue && o.EndTime.Value > endTime) endTime = o.EndTime.Value;
+            }
+
+            var weights = new Dictionary<double, double>();
+            for (int i = 0; i < points.Count; i++)
+            {
+                var start = Math.Max(0, points[i].Time);
+                var end = i + 1 < points.Count ? points[i + 1].Time : Math.Max(start + 1, endTime);
+                var weight = Math.Max(0, end - start);
+                if (weight <= 0) continue;
+
+                var bpm = Math.Round(60000.0 / points[i].BeatLength, 1);
+                double current;
+                weights.TryGetValue(bpm, out current);
+                weights[bpm] = current + weight;
+            }
+
+            if (weights.Count == 0) return 60000.0 / points[0].BeatLength;
+            return weights.OrderByDescending(kv => kv.Value).First().Key;
+        }
+
         public double BeatLengthAt(int timeMs)
         {
             if (TimingPoints.Count == 0) return 500.0;

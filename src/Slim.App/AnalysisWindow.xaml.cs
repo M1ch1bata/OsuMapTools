@@ -34,6 +34,8 @@ namespace Slim
         private readonly Dictionary<int, TaskCompletionSource<string>> _pending =
             new Dictionary<int, TaskCompletionSource<string>>();
         private readonly TaskCompletionSource<bool> _initDone = new TaskCompletionSource<bool>();
+        private volatile bool _needsReinit;
+        private string _lastStage = "";
         private TaskCompletionSource<bool> _ready;
         private int _nextId;
         private string _initError;
@@ -62,6 +64,13 @@ namespace Slim
             var env = await CoreWebView2Environment.CreateAsync(null, userData);
             await Web.EnsureCoreWebView2Async(env);
 
+            Web.CoreWebView2.ProcessFailed += (_, __) =>
+            {
+                _needsReinit = true;
+                _ready = null;
+                _initError = "分析引擎崩溃，正在恢复";
+            };
+
             Web.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 "app.local",
                 AssetPaths.WebRoot,
@@ -78,6 +87,12 @@ namespace Slim
         private void OnMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
             var json = e.WebMessageAsJson;
+            if (json.IndexOf("\"type\":\"stage\"", StringComparison.Ordinal) >= 0)
+            {
+                var st = Regex.Match(json, "\"stage\"\\s*:\\s*\"([^\"]*)\"");
+                if (st.Success) _lastStage = st.Groups[1].Value;
+                return;
+            }
             if (json.IndexOf("\"type\":\"ready\"", StringComparison.Ordinal) >= 0)
             {
                 if (_ready != null) _ready.TrySetResult(true);
@@ -96,8 +111,35 @@ namespace Slim
 
         public async Task<bool> EnsureInitializedAsync()
         {
+            if (_needsReinit)
+            {
+                _needsReinit = false;
+                try
+                {
+                    await InitCoreAsync();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _initError = ex.GetType().Name + ": " + ex.Message;
+                    return false;
+                }
+            }
+
             var done = await Task.WhenAny(_initDone.Task, Task.Delay(25000));
             return done == _initDone.Task && _initDone.Task.Result;
+        }
+
+        public void CancelPending()
+        {
+            try
+            {
+                var core = Web == null ? null : Web.CoreWebView2;
+                if (core == null) return;
+                foreach (var id in new List<int>(_pending.Keys))
+                    core.PostWebMessageAsJson("{\"type\":\"cancel\",\"id\":" + id + "}");
+            }
+            catch { }
         }
 
         public async Task<AnalysisResult> AnalyzeAsync(string osuText, double rate)
@@ -119,7 +161,7 @@ namespace Slim
             if (done != tcs.Task)
             {
                 _pending.Remove(id);
-                return new AnalysisResult { Ok = false, Error = "分析超时" };
+                return new AnalysisResult { Ok = false, Error = "分析超时（最后阶段：" + _lastStage + "）" };
             }
             return Parse(tcs.Task.Result);
         }

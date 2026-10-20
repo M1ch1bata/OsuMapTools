@@ -9,13 +9,25 @@ namespace Slim
 {
     public partial class App : Application
     {
-        private static readonly string LogPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup-error.log");
+        private static readonly string LogPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "OsuTrainerXSlim", "error.log");
         private static System.Threading.Mutex _mutex;
 
         protected override void OnStartup(StartupEventArgs e)
         {
             AppDomain.CurrentDomain.UnhandledException += (_, a) => Log(a.ExceptionObject as Exception);
-            DispatcherUnhandledException += (_, a) => { Log(a.Exception); a.Handled = true; };
+            DispatcherUnhandledException += (_, a) =>
+            {
+                Log(a.Exception);
+                try
+                {
+                    MessageBox.Show("发生未处理错误：\n" + a.Exception.Message + "\n\n详细日志：" + LogPath,
+                        "OsuTrainerX Slim", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                catch { }
+                a.Handled = true;
+            };
 
             bool createdNew;
             _mutex = new System.Threading.Mutex(true, "OsuTrainerXSlim_SingleInstance", out createdNew);
@@ -45,7 +57,17 @@ namespace Slim
             var window = new MainWindow();
             MainWindow = window;
 
-            if (e.Args.Length > 0 && File.Exists(e.Args[0]))
+            var hasMapArg = e.Args.Length > 0 && !e.Args[0].StartsWith("--", StringComparison.Ordinal);
+            if (hasMapArg && !File.Exists(e.Args[0]))
+            {
+                MessageBox.Show("找不到谱面文件：" + e.Args[0], "OsuTrainerX Slim",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown(2);
+                return;
+            }
+
+            var loaded = hasMapArg && File.Exists(e.Args[0]);
+            if (loaded)
             {
                 window.LoadFilePublic(e.Args[0]);
 
@@ -75,14 +97,19 @@ namespace Slim
                 var frame = new DispatcherFrame();
                 task.ContinueWith(_ => frame.Continue = false, System.Threading.Tasks.TaskScheduler.Default);
                 Dispatcher.PushFrame(frame);
-                Shutdown();
+
+                var ok = task.Status == System.Threading.Tasks.TaskStatus.RanToCompletion && task.Result;
+                Shutdown(ok ? 0 : 1);
             }
         }
 
         private static void Log(Exception ex)
         {
+            if (ex == null) return;
             try
             {
+                var dir = Path.GetDirectoryName(LogPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
                 File.AppendAllText(LogPath, "[" + DateTime.Now.ToString("O") + "] " + ex + Environment.NewLine + Environment.NewLine);
             }
             catch

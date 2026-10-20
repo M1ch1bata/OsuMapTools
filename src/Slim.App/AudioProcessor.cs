@@ -14,12 +14,15 @@ namespace Slim
         public const int TargetSampleRate = 44100;
         public const int TargetBitrate = 192000;
 
-        public static void CreateRateAdjustedMp3(string sourcePath, string destPath, double rate, bool preservePitch)
+        public static void CreateRateAdjustedMp3(string sourcePath, string destPath, double rate, bool preservePitch,
+            System.Threading.CancellationToken token = default(System.Threading.CancellationToken))
         {
             if (Math.Abs(rate - 1.0) < 1e-9)
                 throw new ArgumentException("rate must differ from 1.0");
 
+            token.ThrowIfCancellationRequested();
             ISampleProvider source = OpenSource(sourcePath);
+            if (token.CanBeCanceled) source = new CancellableSampleProvider(source, token);
 
             if (source.WaveFormat.Channels == 1)
                 source = new MonoToStereoSampleProvider(source);
@@ -35,7 +38,40 @@ namespace Slim
             var dir = Path.GetDirectoryName(destPath);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-            MediaFoundationEncoder.EncodeToMp3(wave16, destPath, TargetBitrate);
+            var temp = destPath + ".tmp-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".mp3";
+            try
+            {
+                MediaFoundationEncoder.EncodeToMp3(wave16, temp, TargetBitrate);
+                token.ThrowIfCancellationRequested();
+                if (File.Exists(destPath)) File.Delete(destPath);
+                File.Move(temp, destPath);
+            }
+            catch
+            {
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+                throw;
+            }
+        }
+
+        private sealed class CancellableSampleProvider : ISampleProvider
+        {
+            private readonly ISampleProvider _inner;
+            private readonly System.Threading.CancellationToken _token;
+
+            public CancellableSampleProvider(ISampleProvider inner, System.Threading.CancellationToken token)
+            {
+                _inner = inner;
+                _token = token;
+                WaveFormat = inner.WaveFormat;
+            }
+
+            public WaveFormat WaveFormat { get; }
+
+            public int Read(float[] buffer, int offset, int count)
+            {
+                _token.ThrowIfCancellationRequested();
+                return _inner.Read(buffer, offset, count);
+            }
         }
 
         private static ISampleProvider OpenSource(string path)

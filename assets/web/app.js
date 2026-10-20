@@ -16,7 +16,10 @@ function stage(name) {
     try { chrome.webview.postMessage({ type: 'stage', stage: name }); } catch (e) { }
 }
 
-async function analyze(text, rate) {
+let latestId = 0;
+const cancelled = new Set();
+
+async function analyze(text, rate, id) {
     stage('parse');
     const parsed = new OsuFileParser(text);
     parsed.process();
@@ -25,7 +28,16 @@ async function analyze(text, rate) {
     }
 
     stage('msd');
-    const msd = await analyzeEtternaFromText(text, { musicRate: rate });
+    let msd;
+    try {
+        msd = await analyzeEtternaFromText(text, { musicRate: rate });
+    } catch (e) {
+        msd = {
+            etternaVersion: 'unavailable',
+            values: { Overall: 0, Stream: 0, Jumpstream: 0, Handstream: 0, Stamina: 0, JackSpeed: 0, Chordjack: 0, Technical: 0 },
+        };
+    }
+    if (id !== latestId || cancelled.has(id)) return null;
 
     stage('dan');
     const dan = runAzusaEstimatorFromText(text, { speedRate: rate });
@@ -63,11 +75,21 @@ async function analyze(text, rate) {
 
 chrome.webview.addEventListener('message', async (ev) => {
     const msg = ev.data;
-    if (!msg || msg.type !== 'analyze') return;
+    if (!msg) return;
+
+    if (msg.type === 'cancel') {
+        cancelled.add(msg.id);
+        return;
+    }
+    if (msg.type !== 'analyze') return;
+
+    latestId = msg.id;
     try {
-        const result = await analyze(msg.text, typeof msg.rate === 'number' ? msg.rate : 1);
+        const result = await analyze(msg.text, typeof msg.rate === 'number' ? msg.rate : 1, msg.id);
+        if (result === null || msg.id !== latestId || cancelled.has(msg.id)) return;
         chrome.webview.postMessage({ type: 'result', id: msg.id, ok: true, result });
     } catch (err) {
+        if (msg.id !== latestId || cancelled.has(msg.id)) return;
         chrome.webview.postMessage({ type: 'result', id: msg.id, ok: false, error: String(err && err.message || err) });
     }
 });

@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 namespace Slim
 {
     /// <summary>
-    /// tosu v2 watcher (flat schema): state + folders.songs/beatmap + files.beatmap give the
-    /// exact .osu path even on song select, without reading osu! process memory.
+    /// tosu v2 watcher: structured JSON parsing (flat schema), incremental UTF-8 decoding and
+    /// a cancellable socket. Provides the current beatmap path and osu!'s live star rating.
     /// </summary>
     public sealed class TosuWatcher : IDisposable
     {
@@ -18,6 +18,7 @@ namespace Slim
         private readonly Action<string> _onStatus;
         private readonly Action<double> _onStars;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private ClientWebSocket _ws;
         private string _lastPath;
 
         public TosuWatcher(Action<string> onMap, Action<string> onStatus = null, Action<double> onStars = null)
@@ -38,31 +39,43 @@ namespace Slim
             {
                 try
                 {
-                    using (var ws = new ClientWebSocket())
+                    _ws = new ClientWebSocket();
+                    await _ws.ConnectAsync(new Uri("ws://127.0.0.1:24050/websocket/v2"), token);
+                    if (_onStatus != null) _onStatus("tosu 已连接");
+
+                    var buffer = new byte[1 << 16];
+                    var decoder = Encoding.UTF8.GetDecoder();
+                    var chars = new char[Encoding.UTF8.GetMaxCharCount(buffer.Length)];
+                    var sb = new StringBuilder();
+
+                    while (_ws.State == WebSocketState.Open && !token.IsCancellationRequested)
                     {
-                        await ws.ConnectAsync(new Uri("ws://127.0.0.1:24050/websocket/v2"), token);
-                        if (_onStatus != null) _onStatus("tosu 已连接");
+                        var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), token);
+                        if (result.MessageType == WebSocketMessageType.Close) break;
 
-                        var buffer = new byte[1 << 16];
-                        var sb = new StringBuilder();
+                        var count = decoder.GetChars(buffer, 0, result.Count, chars, 0, false);
+                        sb.Append(chars, 0, count);
+                        if (!result.EndOfMessage) continue;
 
-                        while (ws.State == WebSocketState.Open && !token.IsCancellationRequested)
-                        {
-                            var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), token);
-                            if (result.MessageType == WebSocketMessageType.Close) break;
-
-                            sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
-                            if (!result.EndOfMessage) continue;
-
-                            var json = sb.ToString();
-                            sb.Length = 0;
-                            Handle(json);
-                        }
+                        var json = sb.ToString();
+                        sb.Length = 0;
+                        decoder.Reset();
+                        Handle(json);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    if (token.IsCancellationRequested) break;
                 }
                 catch
                 {
-                    if (_onStatus != null) _onStatus("tosu 未连接");
+                    if (!token.IsCancellationRequested && _onStatus != null) _onStatus("tosu 未连接");
+                }
+                finally
+                {
+                    try { _ws?.Abort(); } catch { }
+                    try { _ws?.Dispose(); } catch { }
+                    _ws = null;
                 }
 
                 try { await Task.Delay(3000, token); }
@@ -72,174 +85,86 @@ namespace Slim
 
         private void Handle(string json)
         {
-            var stateObj = ExtractObject(json, "state");
-            var stateName = stateObj == null ? "" : ExtractString(stateObj, "name");
+            Dictionary<string, object> root;
+            try { root = SimpleJson.Parse(json) as Dictionary<string, object>; }
+            catch { root = null; }
+            if (root == null) return;
 
-            var folders = ExtractObject(json, "folders");
-            var files = ExtractObject(json, "files");
-            var beatmap = ExtractObject(json, "beatmap");
+            var state = GetObject(root, "state");
+            var beatmap = GetObject(root, "beatmap");
+            var folders = GetObject(root, "folders");
+            var files = GetObject(root, "files");
 
-            var songs = folders == null ? null : ExtractString(folders, "songs");
-            var relFolder = folders == null ? null : ExtractString(folders, "beatmap");
-            var file = files == null ? null : ExtractString(files, "beatmap");
+            var stateName = GetString(state, "name");
+            var mode = (int)GetDouble(GetObject(beatmap, "mode"), "number", -1);
 
-            var mode = -1;
-            var setId = -1;
-            var id = -1;
             double stars = 0;
             if (beatmap != null)
             {
-                var modeObj = ExtractObject(beatmap, "mode");
-                if (modeObj != null) mode = ExtractInt(modeObj, "number");
-                setId = ExtractInt(beatmap, "set");
-                id = ExtractInt(beatmap, "id");
-
-                var stats = ExtractObject(beatmap, "stats");
-                var starObj = stats == null ? null : ExtractObject(stats, "stars");
+                var stats = GetObject(beatmap, "stats");
+                var starObj = GetObject(stats, "stars");
                 if (starObj != null)
                 {
-                    var live = ExtractDouble(starObj, "live");
-                    var total = ExtractDouble(starObj, "total");
+                    var live = GetDouble(starObj, "live", 0);
+                    var total = GetDouble(starObj, "total", 0);
                     stars = live > 0.5 ? live : total;
                 }
+                else if (stats != null)
+                {
+                    stars = GetDouble(stats, "stars", 0);
+                }
             }
-
-            if (_onStars != null && stars > 0) _onStars(stars);
 
             if (_onStatus != null)
-            {
-                var text = "tosu " + (string.IsNullOrEmpty(stateName) ? "?" : stateName);
-                if (mode >= 0) text += " · mode " + mode;
-                _onStatus(text);
-            }
+                _onStatus("tosu " + (string.IsNullOrEmpty(stateName) ? "?" : stateName) +
+                          (mode >= 0 ? " · mode " + mode : ""));
+            if (_onStars != null && stars > 0) _onStars(stars);
 
-            if (string.IsNullOrEmpty(songs) || string.IsNullOrEmpty(relFolder) || string.IsNullOrEmpty(file))
-                return;
+            var songs = GetString(folders, "songs");
+            var rel = GetString(folders, "beatmap");
+            var file = GetString(files, "beatmap");
+            if (string.IsNullOrEmpty(songs) || string.IsNullOrEmpty(rel) || string.IsNullOrEmpty(file)) return;
 
-            var path = Path.Combine(songs, relFolder, file);
-            if (!File.Exists(path)) return;
+            var path = Path.Combine(songs, rel, file);
             if (string.Equals(path, _lastPath, StringComparison.OrdinalIgnoreCase)) return;
+            if (!File.Exists(path)) return;
 
             _lastPath = path;
-            _onMap(path);
+            if (_onMap != null) _onMap(path);
         }
 
-        private static string ExtractObject(string json, string key)
+        private static Dictionary<string, object> GetObject(Dictionary<string, object> source, string key)
         {
-            var needle = "\"" + key + "\"";
-            int i = json.IndexOf(needle, StringComparison.Ordinal);
-            if (i < 0) return null;
-            int colon = json.IndexOf(':', i + needle.Length);
-            if (colon < 0) return null;
-
-            int start = colon + 1;
-            while (start < json.Length && char.IsWhiteSpace(json[start])) start++;
-            if (start >= json.Length || json[start] != '{') return null;
-
-            int depth = 0;
-            bool inString = false;
-            for (int p = start; p < json.Length; p++)
-            {
-                char c = json[p];
-                if (inString)
-                {
-                    if (c == (char)92) p++;
-                    else if (c == '"') inString = false;
-                    continue;
-                }
-                if (c == '"') { inString = true; continue; }
-                if (c == '{') depth++;
-                else if (c == '}')
-                {
-                    depth--;
-                    if (depth == 0) return json.Substring(start, p - start + 1);
-                }
-            }
-            return null;
+            if (source == null) return null;
+            object value;
+            return source.TryGetValue(key, out value) ? value as Dictionary<string, object> : null;
         }
 
-        private static string ExtractString(string json, string key)
+        private static string GetString(Dictionary<string, object> source, string key)
         {
-            var needle = "\"" + key + "\"";
-            int i = json.IndexOf(needle, StringComparison.Ordinal);
-            if (i < 0) return null;
-            int colon = json.IndexOf(':', i + needle.Length);
-            if (colon < 0) return null;
-
-            int q = json.IndexOf('"', colon + 1);
-            if (q < 0) return null;
-
-            var sb = new StringBuilder();
-            for (int p = q + 1; p < json.Length; p++)
-            {
-                char c = json[p];
-                if (c == (char)92 && p + 1 < json.Length)
-                {
-                    char n = json[++p];
-                    switch (n)
-                    {
-                        case 'n': sb.Append('\n'); break;
-                        case 'r': sb.Append('\r'); break;
-                        case 't': sb.Append('\t'); break;
-                        case '"': sb.Append('"'); break;
-                        case (char)92: sb.Append((char)92); break;
-                        case '/': sb.Append('/'); break;
-                        case 'u':
-                            if (p + 4 < json.Length)
-                            {
-                                int code;
-                                if (int.TryParse(json.Substring(p + 1, 4), System.Globalization.NumberStyles.HexNumber,
-                                        System.Globalization.CultureInfo.InvariantCulture, out code))
-                                    sb.Append((char)code);
-                                p += 4;
-                            }
-                            break;
-                        default: sb.Append(n); break;
-                    }
-                    continue;
-                }
-                if (c == '"') break;
-                sb.Append(c);
-            }
-            return sb.ToString();
+            if (source == null) return null;
+            object value;
+            if (!source.TryGetValue(key, out value)) return null;
+            return value as string;
         }
 
-        private static double ExtractDouble(string json, string key)
+        private static double GetDouble(Dictionary<string, object> source, string key, double fallback)
         {
-            var needle = "\"" + key + "\"";
-            int i = json.IndexOf(needle, StringComparison.Ordinal);
-            if (i < 0) return 0;
-            int colon = json.IndexOf(':', i + needle.Length);
-            if (colon < 0) return 0;
-
-            int p = colon + 1;
-            while (p < json.Length && (json[p] == ' ' || json[p] == '	')) p++;
-            int start = p;
-            while (p < json.Length && (char.IsDigit(json[p]) || json[p] == '.' || json[p] == '-' || json[p] == '+' || json[p] == 'e' || json[p] == 'E')) p++;
-            double value;
-            return double.TryParse(json.Substring(start, p - start), System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out value) ? value : 0;
-        }
-
-        private static int ExtractInt(string json, string key)
-        {
-            var needle = "\"" + key + "\"";
-            int i = json.IndexOf(needle, StringComparison.Ordinal);
-            if (i < 0) return -1;
-            int colon = json.IndexOf(':', i + needle.Length);
-            if (colon < 0) return -1;
-
-            int p = colon + 1;
-            while (p < json.Length && (json[p] == ' ' || json[p] == '\t')) p++;
-            int start = p;
-            while (p < json.Length && (char.IsDigit(json[p]) || json[p] == '-')) p++;
-            int value;
-            return int.TryParse(json.Substring(start, p - start), out value) ? value : -1;
+            if (source == null) return fallback;
+            object value;
+            if (!source.TryGetValue(key, out value) || value == null) return fallback;
+            if (value is double d) return d;
+            var text = value as string;
+            double parsed;
+            if (text != null && double.TryParse(text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out parsed)) return parsed;
+            return fallback;
         }
 
         public void Dispose()
         {
             try { _cts.Cancel(); } catch { }
+            try { _ws?.Abort(); } catch { }
             _cts.Dispose();
         }
     }

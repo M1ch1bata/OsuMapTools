@@ -48,6 +48,9 @@ namespace Slim
 
         private string _memStatus = "";
         private bool _isGenerating;
+        private bool _closed;
+        private readonly System.Threading.CancellationTokenSource _lifetime =
+            new System.Threading.CancellationTokenSource();
         private double _tosuStars;
 
         public MainWindow()
@@ -58,6 +61,8 @@ namespace Slim
             Loaded += MainWindow_Loaded;
             Closed += (_, __) =>
             {
+                _closed = true;
+                try { _lifetime.Cancel(); } catch { }
                 try { if (_memory != null) _memory.Dispose(); } catch { }
                 try { if (_tosu != null) _tosu.Dispose(); } catch { }
                 try { if (_analysis != null) _analysis.Close(); } catch { }
@@ -73,6 +78,7 @@ namespace Slim
             {
                 _analysis.Show();
                 var ok = await _analysis.EnsureInitializedAsync();
+                if (_closed) return;
                 if (!ok) OutputPathText.Text = "分析引擎初始化失败";
 
                 _tosu = new TosuWatcher(OnExternalMap, OnTosuStatus, OnTosuStars);
@@ -183,7 +189,7 @@ namespace Slim
 
         public void LoadFilePublic(string path) { LoadFile(path); }
 
-        public System.Threading.Tasks.Task GeneratePublicAsync() { return GenerateAsync(); }
+        public System.Threading.Tasks.Task<bool> GeneratePublicAsync() { return GenerateAsync(); }
 
         public void SetOutputRoot(string root)
         {
@@ -276,6 +282,20 @@ namespace Slim
             }
         }
 
+        private static bool SameDirectory(string a, string b)
+        {
+            try
+            {
+                var pa = Path.GetFullPath(a).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var pb = Path.GetFullPath(b).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                return string.Equals(pa, pb, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void UpdateBanner(OsuFile map, string path)
         {
             TitleText.Text = string.IsNullOrEmpty(map.Title) ? Path.GetFileNameWithoutExtension(path) : map.Title;
@@ -326,8 +346,7 @@ namespace Slim
         private double GetBaseBpm()
         {
             if (_sourceMap == null) return 120;
-            var beat = _sourceMap.BeatLengthAt(0);
-            return beat > 1 ? 60000.0 / beat : 120;
+            return _sourceMap.DominantBpm();
         }
 
         private static string FormatDuration(int ms)
@@ -422,15 +441,11 @@ namespace Slim
 
         private string GetSpeedTag()
         {
-            if (BpmCheck.IsChecked == true)
-            {
-                double bpm;
-                if (double.TryParse(BpmBox.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out bpm) && bpm > 0)
-                    return bpm.ToString("0.#", CultureInfo.InvariantCulture) + "bpm";
-                return "";
-            }
             var rate = GetRate();
-            return Math.Abs(rate - 1.0) > 1e-9 ? rate.ToString("0.##", CultureInfo.InvariantCulture) + "x" : "";
+            if (Math.Abs(rate - 1.0) < 1e-9) return "";
+            if (BpmCheck.IsChecked == true)
+                return (GetBaseBpm() * rate).ToString("0.#", CultureInfo.InvariantCulture) + "bpm";
+            return rate.ToString("0.##", CultureInfo.InvariantCulture) + "x";
         }
 
         private bool GetKeepPitch()
@@ -537,6 +552,7 @@ namespace Slim
                 LnText.Visibility = Visibility.Collapsed;
                 MsdText.Text = "…";
 
+                _analysis.CancelPending();
                 string suffix;
                 var map = BuildTransformed(false, out suffix);
                 OutputPathText.Text = PredictOutputPath(suffix);
@@ -567,7 +583,6 @@ namespace Slim
                 LnText.Visibility = hasLn ? Visibility.Visible : Visibility.Collapsed;
 
                 MsdText.Text = result.Overall.ToString("0.00", CultureInfo.InvariantCulture);
-                OutputPathText.ToolTip = null;
             }
             catch (Exception ex)
             {
@@ -629,19 +644,19 @@ namespace Slim
             await GenerateAsync();
         }
 
-        private async System.Threading.Tasks.Task GenerateAsync()
+        private async System.Threading.Tasks.Task<bool> GenerateAsync()
         {
-            if (_isGenerating) return;
-            if (_sourceMap == null) return;
+            if (_isGenerating) return false;
+            if (_sourceMap == null) return false;
             if (!_isMania)
             {
                 OutputPathText.Text = "非Mania谱面，无法生成";
-                return;
+                return false;
             }
             if (!HasChanges())
             {
-                OutputPathText.ToolTip = "未做任何修改，无需生成";
-                return;
+                OutputPathText.Text = "未做任何修改，无需生成";
+                return false;
             }
             _isGenerating = true;
             UpdateGenerateState();
@@ -655,6 +670,7 @@ namespace Slim
                 var originDir = Path.GetDirectoryName(Path.GetFullPath(_sourcePath));
                 bool external = !string.IsNullOrEmpty(_outputRoot);
                 string outDir = GetOutputDirectory();
+                if (external && SameDirectory(outDir, originDir)) external = false;
                 if (external) Directory.CreateDirectory(outDir);
 
                 var audioName = map.AudioFilename;
@@ -671,7 +687,7 @@ namespace Slim
                     var newName = Naming.Sanitize(Path.GetFileNameWithoutExtension(audioName) + " [" + speedTag + pitchTag + "].mp3");
                     var dstAudio = Path.Combine(outDir, newName);
 
-                    await Task.Run(() => AudioProcessor.CreateRateAdjustedMp3(srcAudio, dstAudio, rate, keepPitch));
+                    await Task.Run(() => AudioProcessor.CreateRateAdjustedMp3(srcAudio, dstAudio, rate, keepPitch, _lifetime.Token), _lifetime.Token);
                     map.AudioFilename = newName;
                 }
                 else if (external)
@@ -691,10 +707,25 @@ namespace Slim
 
                 OutputPathText.Text = outPath;
                 OutputPathText.ToolTip = truncated ? "文件名过长，已截断" : null;
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                OutputPathText.Text = "已取消生成";
+                return false;
             }
             catch (Exception ex)
             {
-                OutputPathText.ToolTip = "生成失败：" + ex.Message;
+                try
+                {
+                    var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OsuTrainerXSlim");
+                    Directory.CreateDirectory(dir);
+                    File.AppendAllText(System.IO.Path.Combine(dir, "error.log"), "[" + DateTime.Now.ToString("O") + "] generation: " + ex + Environment.NewLine);
+                }
+                catch { }
+                OutputPathText.Text = "生成失败：" + ex.Message;
+                OutputPathText.ToolTip = ex.ToString();
+                return false;
             }
             finally
             {
