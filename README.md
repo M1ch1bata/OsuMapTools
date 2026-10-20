@@ -1,84 +1,99 @@
 # OsuMapTools
 
-> **单文件分发**：构建产物是单个 `OsuMapTools.exe`（约 3.6 MB，内嵌全部依赖与 web 资源）。
-> 首次启动会把分析器资源解包到 `%LOCALAPPDATA%\OsuMapTools\web\<版本>`，之后直接复用。
-> 运行位置：放在普通目录（如 `D:\APPs\OsuMapTools`）里运行；放在 `D:\vibe\osu\` 工作区目录下时该目录带沙箱 ACL，读不到 osu! 内存。
-> 需要系统自带 WebView2 运行时（Win10/11 默认已有）。
-> 构建后执行 `build-to-d.cmd` 自动部署单文件 exe。
+面向 **osu! stable（mania）** 的谱面处理与练习工具：变速、改 OD/HP、LN 变换、难度预览，开箱即用。
 
+> 单文件 exe，免安装；也可以下载完整文件夹版。
 
-面向 osu! stable 的极简谱面练习工具：**变速、改 OD/HP、LN 处理（invert / hold off / Release）、难度预览（MSD + 段位）**。
-
-体积 **3.3 MB**，零安装：只依赖 Windows 自带的 .NET Framework 4.8 与 Edge WebView2 运行时。
+![预览](docs/preview.png)
 
 ## 功能
 
-| 功能 | 说明 |
+### 变速
+
+- 按倍速变速：**保持音高**（SoundTouch）或 **变调**（重采样，像唱片加速）
+- 按 BPM 变速：多 BPM 谱面以**覆盖时间最长的主 BPM** 为参考，`倍率 = 目标 BPM ÷ 主 BPM`
+- 谱面时间、TimingPoints、音频同步缩放，相对 BPM 结构保持不变
+
+### 谱面修改
+
+- 修改 **OD / HP**（未改动时不写入）
+- **FULL LN**：把普通音符按 Lazer `ManiaModInvert` 规则变成 LN（松散 1/2 拍 / 标准 1/4 拍 / 密集 1/8 拍）
+- **RICE**：把 LN 变成单点（Lazer `ManiaModHoldOff`）
+- **Release**：保持 LN 头不变，按 `min(d/2, 拍长/f)` 随机生成尾判（f = 2/3/4/5/6/8）
+- 自动清理视频、故事板与 break（输出更干净）
+
+### 难度预览
+
+| 项目 | 来源 |
 |---|---|
-| 变速 | 0.5×–2.0×，或勾选「按BPM」直接指定目标 BPM（右侧实时显示换算倍率）；「保持音高」可取消以获得变调效果；音频解码 MP3 / OGG / WAV，统一输出 192 kbps MP3 |
-| OD / HP | 留空则不修改 |
-| **FULL LN**（原 invert） | 对齐 osu!lazer `ManiaModInvert`：每列每个物件（note / LN 头）变成长条，`缝隙 = min(d/2, beat/f)`；可选 **松散 1/2 拍 / 标准 1/4 拍 / 密集 1/8 拍**，列尾物件丢弃，只留头音效 |
-| **RICE**（原 hold off） | 对齐 osu!lazer `ManiaModHoldOff`：所有 LN 变回单点（保留头音效），note 不动 |
-| **Release** | 随机面尾：从物件头重建长条，`缝隙 = min(d/2, beat/f)`，`f ∈ {2,3,4,5,6,8}` 纯随机；列尾保留单点 |
-| 难度预览 | 三栏显示（数字居中输入见设置区）：**星数**（osu! 官方星级，来自 tosu `beatmap.stats.stars`，如 5.49星）· **段位**（RC 段位，LN 占比 ≥15% 时下面一行显示 LN 段位，如 `Reform 9 High` / `LN 10 Low`）· **MSD**（保留两位小数）；切换模式会实时重算；与 ManiaMapAnalyser 插件同源（段位使用插件默认的 **Azusa** 估算器） |
-| 动态元素 | 新 `.osu` 中去掉 Video / Storyboard / Break 事件，原始文件保留不动 |
+| 星数 | osu! 官方 SR（rosu-pp） |
+| 段位 | Azusa（与 ManiaMapAnalyser 插件一致） |
+| MSD | Etterna MinaCalc |
 
-其中「缝隙」指**上一段 LN 抬手到下一个 LN 按下的时间间隔**。所有模式都写回**同一谱面文件夹**，文件名与 `Version` 加后缀，顺序为 **倍速 + 模式 + HP + OD**（如 `[1.2x FULL LN HP8 OD8]`、`[RICE]`、`[Release 1.2x]`）。
+### 识别当前谱面
 
-## BPM 模式
+- 默认读取 osu! 进程内存自动跟随（选歌界面、游玩中都可）
+- 可选 **tosu** 通道（`ws://127.0.0.1:24050`），内存不可用时自动切换
+- 内置**歌曲列表**：搜索谱面集、选择难度、一键载入
+- 支持把 `.osu` 文件直接拖进窗口
 
-多 BPM 谱面以**覆盖时间最长的那一段 BPM**为主参考（与 osu! 展示的主 BPM 一致），
-`rate = 目标 BPM ÷ 主 BPM`，变速时所有 timing point 按同一比例缩放，相对 BPM 结构保持不变。
-例如 128–223 BPM 的谱面主 BPM 为 180，设 192 则实际倍率 1.07x。
+### 输出
+
+- 默认写回原谱面所在文件夹，也可指定外部输出目录
+- 后缀规则：**倍速 + 模式 + HP + OD**（未改动的项省略），例如：
+  - `[1.2x FULL LN HP8 OD8]`
+  - `[180bpm RICE]`
+  - `[Release]`
+- 同名文件自动追加 ` (2)`，不会覆盖原谱面
+- 音频按需转码为 192 kbps MP3
 
 ## 使用
 
-1. 拖入 `.osu` 或点击「选择谱面…」；
-2. 设定倍速 / OD / HP / 音符处理；
-3. 预览区实时显示输出谱面的 MSD 与段位；
-4. 也可以点「选择谱面…」从内置歌曲列表中选择；
-5. 点「生成」（若倍速 / OD / HP / 模式 / 输出目录全部未改动，按钮会禁用，避免生成与原文完全相同的谱面）。
+1. 从 [Releases](https://github.com/M1ch1bata/OsuMapTools/releases) 下载：
+   - `OsuMapTools.exe`（单文件，推荐）
+   - 或完整文件夹版压缩包（解压后运行 `OsuMapTools.exe`）
+2. 先打开 osu!，再打开 OsuMapTools
+3. 确认右上角出现 `内存 SongSelect`（或 tosu 已连接）；也可以点「选择谱面…」从歌曲列表选择
+4. 调整倍速 / OD / HP / 音符处理
+5. 点「生成」，底部会显示实际输出路径
 
-变速时会生成新音频文件（如 `audio [1.2x].mp3`），原音频不被覆盖。
+> 什么都没改时「生成」按钮是禁用的；这表示输出会和原谱面完全一致，没有生成必要。
 
-## 命令行（自动化/自测）
+## 系统要求
 
-```
-OsuMapTools.exe <map.osu> [--rate 1.2] [--od 8] [--hp 7]
-                    [--mode keep|invert|holdoff|release] [--generate]
-```
+- Windows 10 / 11（x64）
+- .NET Framework 4.8（系统自带）
+- WebView2 Runtime（Win10/11 自带；缺失时从微软官网安装）
+- osu! stable（mania 谱面）
 
-## 技术实现
+## 命令行
 
-- `net48` + WPF，单 exe，无运行时打包；
-- 难度分析：离屏 WebView2 通过虚拟域名加载插件原版 JS（`parser` + `rework` + `estimator` + `ett`），C# 与页面用 `chrome.webview` 消息通信 —— 数值与插件完全一致；
-- 音频：NAudio（MediaFoundationReader / MediaFoundationEncoder）+ NVorbis（OGG）+ SoundTouch（变速不变调）；
-- 事件剥离：删除 `[Events]` 中的 `Video,`、`1,0,"*.avi|mp4"`、`Sprite/Animation/Sample`、`2,`（break），保留背景图。
-
-## 已知限制
-
-- 谱面集根目录的 `.osb` 是**所有难度共享**的，`.osu` 无法禁用；有 `.osb` 的谱面集输出后故事板仍会显示（按需求不做提示）；
-- 视频/故事板资源文件原样保留，只是新 `.osu` 不再引用；
-- MP3 编码依赖 Windows Media Foundation；Windows N 版可能缺失；
-- 变速后音频统一转 MP3，原始 OGG/WAV 不保留；
-- FULL LN 的列尾物件按 Lazer 行为**丢弃**；Release 的列尾保留单点；
-- 数字段位基于 RC（纯音符）区间；Intro 段（<1dan）只显示文字标签；
-- Release 为纯随机、不可复现。
-
-## 构建
-
-需要 .NET SDK 8（用 `dotnet build` 即可编译 net48 目标）：
-
-```
-dotnet build -c Release
+```bat
+OsuMapTools.exe "map.osu" --rate 1.2 --generate
+OsuMapTools.exe "map.osu" --bpm 180 --mode invert --strength dense --generate
+OsuMapTools.exe "map.osu" --od 8 --hp 7 --out "D:\out" --no-pitch --generate
 ```
 
-产物：`src/OsuMapTools/bin/Release/net48/`（约 3.3 MB，68 个文件）。
+| 参数 | 说明 |
+|---|---|
+| `--rate <x>` | 倍速（0.01–5） |
+| `--bpm <bpm>` | 按目标 BPM 变速 |
+| `--od <v>` / `--hp <v>` | 覆盖 OD / HP |
+| `--mode keep\|invert\|holdoff\|release` | 音符处理 |
+| `--strength loose\|std\|dense` | FULL LN 缝隙 |
+| `--out <dir>` | 外部输出根目录 |
+| `--no-pitch` | 关闭保持音高（变调） |
+| `--generate` | 生成后退出 |
 
-## 已验证
+退出码：`0` 成功，`1` 生成失败/无改动，`2` 谱面不存在。
 
-- **FULL LN**：917 个长条的起点/终点/列/打击音与 Lazer 算法参考实现**逐项一致**；
-- **RICE**：921 个物件、0 个长条；
-- **Release**：917 个长条的缝隙全部落在 `min(d/2, beat/f)` 允许值内，列尾 4 个单点；
-- 音频：MP3 → 1.2×（300.7 s → 250.7 s，191.8 kbps）；OGG → 1.2×；48 kHz WAV → 0.8×；
-- MSD 与插件逐项一致（Pendulum 4K：6.2875 / 5.993 / 5.140 / 3.460 / 6.080 / 3.940 / 4.420 / 6.2875），段位 `< Alpha Low`。
+## 注意事项
+
+- 读内存需要权限对齐：如果 osu! 以管理员身份运行，本工具也需要以管理员身份运行
+- 请保留原谱面备份；工具只写新文件，不修改源文件
+- Release 模式按设计是随机的，预览与最终生成可能不同
+- 输出目录如果选在 `Songs` 根目录，会自动落到原谱面文件夹，不会自我复制
+
+## 许可证
+
+[MIT](LICENSE)

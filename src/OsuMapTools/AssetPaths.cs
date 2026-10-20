@@ -41,24 +41,19 @@ namespace OsuMapTools
         private static string EnsureWebRoot()
         {
             var assembly = Assembly.GetExecutingAssembly();
+
+            // Folder release: a complete `web` folder next to the exe wins over the extracted cache.
+            var loose = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "web");
+            if (File.Exists(Path.Combine(loose, "index.html")))
+                return loose;
+
             var hash = ComputePayloadHash(assembly);
             var root = Path.Combine(UserDataRoot, "web", hash);
 
             if (IsComplete(root, hash)) return root;
 
-            // Fall back to the loose web folder next to the exe (available for the non-single-file build).
-            var fallback = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "web");
-            try
-            {
-                Extract(assembly, root, hash);
-                return root;
-            }
-            catch
-            {
-                if (Directory.Exists(fallback) && File.Exists(Path.Combine(fallback, "index.html")))
-                    return fallback;
-                throw;
-            }
+            Extract(assembly, root, hash);
+            return root;
         }
 
         private static bool IsComplete(string root, string hash)
