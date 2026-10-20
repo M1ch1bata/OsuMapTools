@@ -47,6 +47,7 @@ namespace Slim
         }
 
         private string _memStatus = "";
+        private bool _isGenerating;
         private double _tosuStars;
 
         public MainWindow()
@@ -112,6 +113,7 @@ namespace Slim
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (FollowCheck == null || FollowCheck.IsChecked != true) return;
                 if (stars <= 0 || Math.Abs(stars - _tosuStars) < 0.005) return;
                 _tosuStars = stars;
                 if (StarText != null && _isMania) StarText.Text = stars.ToString("0.00", CultureInfo.InvariantCulture) + "星";
@@ -144,6 +146,11 @@ namespace Slim
 
         private void FollowCheck_Changed(object sender, RoutedEventArgs e)
         {
+            if (FollowCheck != null && FollowCheck.IsChecked != true)
+            {
+                _tosuStars = 0;
+                SchedulePreview();
+            }
         }
 
         private void Window_DragOver(object sender, DragEventArgs e)
@@ -212,13 +219,27 @@ namespace Slim
 
         private void LoadFile(string path)
         {
+            if (_isGenerating) return;
+
+            _previewVersion++;
+            _debounce.Stop();
+
             try
             {
+                var text = File.ReadAllText(path);
+                var map = OsuFile.Parse(text);
+
+                // Commit only after both read and parse succeeded.
                 _sourcePath = path;
-                _sourceText = File.ReadAllText(path);
-                _sourceMap = OsuFile.Parse(_sourceText);
+                _sourceText = text;
+                _sourceMap = map;
+                _tosuStars = 0;
 
                 UpdateBanner(_sourceMap, path);
+                StarText.Text = "—";
+                DanText.Text = "分析中…";
+                LnText.Visibility = Visibility.Collapsed;
+                MsdText.Text = "—";
 
                 RateBox.Text = "1.0";
                 BpmBox.Text = GetBaseBpm().ToString("0.#", CultureInfo.InvariantCulture);
@@ -249,7 +270,9 @@ namespace Slim
             }
             catch (Exception ex)
             {
+                _previewVersion++;
                 OutputPathText.Text = "读取失败：" + ex.Message;
+                UpdateGenerateState();
             }
         }
 
@@ -344,7 +367,7 @@ namespace Slim
         private void UpdateGenerateState()
         {
             if (GenerateButton == null) return;
-            GenerateButton.IsEnabled = _isMania && _sourceMap != null && HasChanges();
+            GenerateButton.IsEnabled = !_isGenerating && _isMania && _sourceMap != null && HasChanges();
         }
 
         private void UpdateEffectiveRate()
@@ -608,6 +631,7 @@ namespace Slim
 
         private async System.Threading.Tasks.Task GenerateAsync()
         {
+            if (_isGenerating) return;
             if (_sourceMap == null) return;
             if (!_isMania)
             {
@@ -619,7 +643,9 @@ namespace Slim
                 OutputPathText.ToolTip = "未做任何修改，无需生成";
                 return;
             }
-            GenerateButton.IsEnabled = false;
+            _isGenerating = true;
+            UpdateGenerateState();
+            var sourcePath = _sourcePath;
             try
             {
                 string suffix;
@@ -640,9 +666,10 @@ namespace Slim
                     if (!File.Exists(srcAudio)) throw new FileNotFoundException("找不到音频文件：" + srcAudio);
 
                     var speedTag = GetSpeedTag();
-                    var newName = Naming.Sanitize(Path.GetFileNameWithoutExtension(audioName) + " [" + speedTag + "].mp3");
-                    var dstAudio = Path.Combine(outDir, newName);
                     var keepPitch = GetKeepPitch();
+                    var pitchTag = keepPitch ? "" : " nopitch";
+                    var newName = Naming.Sanitize(Path.GetFileNameWithoutExtension(audioName) + " [" + speedTag + pitchTag + "].mp3");
+                    var dstAudio = Path.Combine(outDir, newName);
 
                     await Task.Run(() => AudioProcessor.CreateRateAdjustedMp3(srcAudio, dstAudio, rate, keepPitch));
                     map.AudioFilename = newName;
@@ -658,8 +685,8 @@ namespace Slim
                 map.DifficultyName = map.DifficultyName + " [" + suffix + "]";
 
                 bool truncated;
-                var outPath = Naming.BuildOutputPath(outDir, Path.GetFileNameWithoutExtension(_sourcePath),
-                    suffix, out truncated, originDir == outDir ? _sourcePath : null);
+                var outPath = Naming.BuildOutputPath(outDir, Path.GetFileNameWithoutExtension(sourcePath),
+                    suffix, out truncated, originDir == outDir ? sourcePath : null);
                 map.Save(outPath);
 
                 OutputPathText.Text = outPath;
@@ -671,6 +698,7 @@ namespace Slim
             }
             finally
             {
+                _isGenerating = false;
                 UpdateGenerateState();
             }
         }

@@ -82,7 +82,9 @@ namespace Slim
             public SpeedUpSampleProvider(ISampleProvider source, double rate)
             {
                 int sampleRate = source.WaveFormat.SampleRate;
-                int target = (int)Math.Round(sampleRate * rate);
+                // Resample to sampleRate / rate and keep declaring sampleRate: playing the frames
+                // back at the nominal rate shortens the duration by `rate` (tempo+pitch change).
+                int target = (int)Math.Round(sampleRate / rate);
                 if (target < 8000) target = 8000;
                 if (target > 192000) target = 192000;
                 _inner = new WdlResamplingSampleProvider(source, target);

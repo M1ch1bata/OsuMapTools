@@ -29,12 +29,15 @@ async function analyze(text, rate) {
 
     stage('dan');
     const dan = runAzusaEstimatorFromText(text, { speedRate: rate });
+    if (!dan || !isFinite(dan.star) || /^Invalid/i.test(dan.estDiff || '')) {
+        throw new Error(dan && dan.estDiff ? dan.estDiff : 'Azusa 无法计算该谱面（仅支持 4K）');
+    }
 
     stage('osu');
     let osuStar = null;
     try {
         const rosu = await getRosu();
-        const attrs = new rosu.Difficulty({ mods: 0 }).calculate(new rosu.Beatmap(text));
+        const attrs = new rosu.Difficulty({ mods: 0, clockRate: rate }).calculate(new rosu.Beatmap(text));
         if (attrs && isFinite(attrs.stars)) osuStar = attrs.stars;
     } catch (e) { }
 
@@ -49,7 +52,11 @@ async function analyze(text, rate) {
             numeric: dan.numericDifficulty,
             star: dan.star,
         },
-        difficulty: dan.estDiff,
+        difficulty: (function () {
+            const combined = estDiff(dan.star, parsed.lnRatio, parsed.columnCount);
+            const sep = combined.indexOf(' || ');
+            return sep >= 0 ? dan.estDiff + combined.substring(sep) : dan.estDiff;
+        })(),
         osuStar: osuStar,
     };
 }

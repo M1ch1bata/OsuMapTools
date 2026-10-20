@@ -112,10 +112,10 @@ namespace Slim
                     var reader = _boundReader ?? StructuredOsuMemoryReader.Instance;
                     if (reader != null && _boundReader == null && !_triedWindowBinding)
                     {
-                        _triedWindowBinding = true;
                         var title = FindOsuWindowTitle();
                         if (!string.IsNullOrEmpty(title))
                         {
+                            _triedWindowBinding = true;
                             try
                             {
                                 _boundReader = reader.GetInstanceForWindowTitleHint(title);

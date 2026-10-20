@@ -263,6 +263,41 @@ namespace Slim
             return null;
         }
 
+        /// <summary>Inserts a key/value line into the given section (before [HitObjects] if the section is missing).</summary>
+        public void InsertHeadLine(string section, string text)
+        {
+            int start = -1, end = HeadLines.Count;
+            for (int i = 0; i < HeadLines.Count; i++)
+            {
+                var t = HeadLines[i].Trim();
+                if (t.Length < 2 || t[0] != '[' || t[t.Length - 1] != ']') continue;
+                if (start < 0)
+                {
+                    if (string.Equals(t, section, StringComparison.OrdinalIgnoreCase)) start = i;
+                }
+                else
+                {
+                    end = i;
+                    break;
+                }
+            }
+
+            if (start < 0)
+            {
+                int obj = HeadLines.FindIndex(l => l.Trim().Equals("[HitObjects]", StringComparison.OrdinalIgnoreCase));
+                if (obj >= 0) HeadLines.Insert(obj, text);
+                else HeadLines.Add(text);
+                return;
+            }
+
+            int pos = start + 1;
+            for (int i = end - 1; i > start; i--)
+            {
+                if (HeadLines[i].Trim().Length > 0) { pos = i + 1; break; }
+            }
+            HeadLines.Insert(pos, text);
+        }
+
         public string DifficultyName
         {
             get
@@ -274,7 +309,7 @@ namespace Slim
             {
                 int i = HeadLines.FindIndex(l => l.StartsWith("Version:", StringComparison.OrdinalIgnoreCase));
                 var text = "Version:" + value;
-                if (i >= 0) HeadLines[i] = text; else HeadLines.Add(text);
+                if (i >= 0) HeadLines[i] = text; else InsertHeadLine("[Metadata]", text);
             }
         }
 
@@ -386,7 +421,7 @@ namespace Slim
             {
                 o.Time = (int)Math.Round(o.Time / rate);
                 if (o.EndTime.HasValue) o.EndTime = (int)Math.Round(o.EndTime.Value / rate);
-                if (o.IsHold) o.SampleData = o.EndTime.Value.ToString(CultureInfo.InvariantCulture) + ":" + o.SampleTail();
+                if (o.IsHold && o.EndTime.HasValue) o.SampleData = o.EndTime.Value.ToString(CultureInfo.InvariantCulture) + ":" + o.SampleTail();
             }
         }
 

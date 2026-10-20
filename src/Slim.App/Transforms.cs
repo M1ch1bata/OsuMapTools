@@ -129,7 +129,7 @@ namespace Slim
             var text = key + ":" + value.ToString("0.##", CultureInfo.InvariantCulture);
             int i = map.HeadLines.FindIndex(l => l.StartsWith(key + ":", StringComparison.OrdinalIgnoreCase));
             if (i >= 0) map.HeadLines[i] = text;
-            else map.HeadLines.Add(text);
+            else map.InsertHeadLine("[Difficulty]", text);
         }
     }
 
