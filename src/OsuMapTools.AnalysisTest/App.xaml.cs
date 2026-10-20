@@ -1,7 +1,7 @@
 using System;
 using System.Windows;
 
-namespace Slim.AnalysisTest
+namespace OsuMapTools.AnalysisTest
 {
     public partial class App : Application
     {
@@ -10,7 +10,7 @@ namespace Slim.AnalysisTest
             base.OnStartup(e);
             if (e.Args.Length < 2)
             {
-                Console.Error.WriteLine("usage: Slim.AnalysisTest <map.osu> <out.json>");
+                Console.Error.WriteLine("usage: OsuMapTools.AnalysisTest <map.osu> <out.json>");
                 Shutdown(2);
                 return;
             }

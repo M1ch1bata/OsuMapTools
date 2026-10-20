@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
-namespace Slim
+namespace OsuMapTools
 {
     /// <summary>
     /// Extracts the embedded web assets (ManiaMapAnalyser + rosu-pp) into a content-addressed
@@ -32,7 +32,7 @@ namespace Slim
             {
                 var dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "OsuTrainerXSlim");
+                    "OsuMapTools");
                 Directory.CreateDirectory(dir);
                 return dir;
             }
@@ -79,7 +79,7 @@ namespace Slim
         private static void Extract(Assembly assembly, string root, string hash)
         {
             // Multiple sessions/processes may start at once; serialise the extraction.
-            using (var mutex = new Mutex(false, @"Global\OsuTrainerXSlim-WebAssets"))
+            using (var mutex = new Mutex(false, @"Global\OsuMapTools-WebAssets"))
             {
                 var acquired = false;
                 try

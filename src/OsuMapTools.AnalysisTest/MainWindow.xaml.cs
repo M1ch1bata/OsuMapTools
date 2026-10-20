@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
 
-namespace Slim.AnalysisTest
+namespace OsuMapTools.AnalysisTest
 {
     public partial class MainWindow : Window
     {

@@ -12,7 +12,7 @@ using System.Security.Principal;
 using OsuMemoryDataProvider;
 using OsuMemoryDataProvider.OsuMemoryModels.Direct;
 
-namespace Slim
+namespace OsuMapTools
 {
     /// <summary>Locates the osu! Songs folder from registry, running process or common paths.</summary>
     public static class SongsLocator

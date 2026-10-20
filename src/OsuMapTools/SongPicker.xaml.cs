@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace Slim
+namespace OsuMapTools
 {
     public partial class SongPicker : Window
     {

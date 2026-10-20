@@ -7,8 +7,8 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <PlatformTarget>x64</PlatformTarget>
-    <AssemblyName>Slim.AnalysisTest</AssemblyName>
-    <RootNamespace>Slim.AnalysisTest</RootNamespace>
+    <AssemblyName>OsuMapTools.AnalysisTest</AssemblyName>
+    <RootNamespace>OsuMapTools.AnalysisTest</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

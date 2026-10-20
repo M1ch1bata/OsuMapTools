@@ -5,13 +5,13 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace Slim
+namespace OsuMapTools
 {
     public partial class App : Application
     {
         private static readonly string LogPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "OsuTrainerXSlim", "error.log");
+            "OsuMapTools", "error.log");
         private static System.Threading.Mutex _mutex;
 
         protected override void OnStartup(StartupEventArgs e)
@@ -23,17 +23,17 @@ namespace Slim
                 try
                 {
                     MessageBox.Show("发生未处理错误：\n" + a.Exception.Message + "\n\n详细日志：" + LogPath,
-                        "OsuTrainerX Slim", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        "OsuMapTools", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
                 catch { }
                 a.Handled = true;
             };
 
             bool createdNew;
-            _mutex = new System.Threading.Mutex(true, "OsuTrainerXSlim_SingleInstance", out createdNew);
+            _mutex = new System.Threading.Mutex(true, "OsuMapTools_SingleInstance", out createdNew);
             if (!createdNew)
             {
-                MessageBox.Show("OsuTrainerXSlim 已经在运行，请先关闭已有窗口。", "OsuTrainerX Slim",
+                MessageBox.Show("OsuMapTools 已经在运行，请先关闭已有窗口。", "OsuMapTools",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
                 return;
@@ -60,7 +60,7 @@ namespace Slim
             var hasMapArg = e.Args.Length > 0 && !e.Args[0].StartsWith("--", StringComparison.Ordinal);
             if (hasMapArg && !File.Exists(e.Args[0]))
             {
-                MessageBox.Show("找不到谱面文件：" + e.Args[0], "OsuTrainerX Slim",
+                MessageBox.Show("找不到谱面文件：" + e.Args[0], "OsuMapTools",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 Shutdown(2);
                 return;

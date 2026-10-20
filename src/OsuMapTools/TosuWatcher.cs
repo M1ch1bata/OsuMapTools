@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Slim
+namespace OsuMapTools
 {
     /// <summary>
     /// tosu v2 watcher: structured JSON parsing (flat schema), incremental UTF-8 decoding and

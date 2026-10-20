@@ -13,7 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
-namespace Slim
+namespace OsuMapTools
 {
     public partial class MainWindow : Window
     {
@@ -718,7 +718,7 @@ namespace Slim
             {
                 try
                 {
-                    var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OsuTrainerXSlim");
+                    var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OsuMapTools");
                     Directory.CreateDirectory(dir);
                     File.AppendAllText(System.IO.Path.Combine(dir, "error.log"), "[" + DateTime.Now.ToString("O") + "] generation: " + ex + Environment.NewLine);
                 }

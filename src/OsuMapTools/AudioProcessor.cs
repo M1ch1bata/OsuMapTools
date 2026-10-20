@@ -6,7 +6,7 @@ using NAudio.Wave.SampleProviders;
 using SoundTouch;
 using NVorbis;
 
-namespace Slim
+namespace OsuMapTools
 {
     /// <summary>Decodes mp3/ogg/wav, time-stretches with pitch preserved and encodes a 192 kbps mp3.</summary>
     public static class AudioProcessor

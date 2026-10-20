@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Slim
+namespace OsuMapTools
 {
     /// <summary>Minimal recursive JSON parser (objects → Dictionary, arrays → List, numbers → double).</summary>
     public static class SimpleJson

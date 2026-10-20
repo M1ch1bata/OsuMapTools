@@ -1,8 +1,8 @@
-# OsuTrainerX Slim
+# OsuMapTools
 
-> **单文件分发**：构建产物是单个 `OsuTrainerXSlim.exe`（约 3.6 MB，内嵌全部依赖与 web 资源）。
-> 首次启动会把分析器资源解包到 `%LOCALAPPDATA%\OsuTrainerXSlim\web\<版本>`，之后直接复用。
-> 运行位置：放在普通目录（如 `D:\APPs\OsuTrainerXSlim`）里运行；放在 `D:\vibe\osu\` 工作区目录下时该目录带沙箱 ACL，读不到 osu! 内存。
+> **单文件分发**：构建产物是单个 `OsuMapTools.exe`（约 3.6 MB，内嵌全部依赖与 web 资源）。
+> 首次启动会把分析器资源解包到 `%LOCALAPPDATA%\OsuMapTools\web\<版本>`，之后直接复用。
+> 运行位置：放在普通目录（如 `D:\APPs\OsuMapTools`）里运行；放在 `D:\vibe\osu\` 工作区目录下时该目录带沙箱 ACL，读不到 osu! 内存。
 > 需要系统自带 WebView2 运行时（Win10/11 默认已有）。
 > 构建后执行 `build-to-d.cmd` 自动部署单文件 exe。
 
@@ -44,7 +44,7 @@
 ## 命令行（自动化/自测）
 
 ```
-OsuTrainerXSlim.exe <map.osu> [--rate 1.2] [--od 8] [--hp 7]
+OsuMapTools.exe <map.osu> [--rate 1.2] [--od 8] [--hp 7]
                     [--mode keep|invert|holdoff|release] [--generate]
 ```
 
@@ -73,7 +73,7 @@ OsuTrainerXSlim.exe <map.osu> [--rate 1.2] [--od 8] [--hp 7]
 dotnet build -c Release
 ```
 
-产物：`src/Slim.App/bin/Release/net48/`（约 3.3 MB，68 个文件）。
+产物：`src/OsuMapTools/bin/Release/net48/`（约 3.3 MB，68 个文件）。
 
 ## 已验证
 
