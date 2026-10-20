@@ -1,0 +1,13 @@
+# 构建产物
+bin/
+obj/
+wv2data/
+
+# 日志
+*.log
+*.pdb
+
+# 用户/IDE
+*.user
+*.suo
+.vs/

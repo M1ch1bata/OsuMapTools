@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>OsuTrainerXSlim</AssemblyName>
+    <RootNamespace>Slim</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\osu.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fody" Version="6.8.2" PrivateAssets="all" />
+    <PackageReference Include="Costura.Fody" Version="5.7.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" GeneratePathProperty="true" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="NVorbis" Version="0.10.5" />
+    <PackageReference Include="OsuMemoryDataProvider" Version="0.10.3" />
+    <PackageReference Include="SoundTouch.Net" Version="2.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="assets\osu.ico" />
+    <!-- single-file: embed web assets (extracted on first run) -->
+    <EmbeddedResource Include="..\..\assets\web\**\*" LogicalName="webassets/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- single-file: native WebView2 loader (costura64 convention) -->
+    <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll" LogicalName="costura64.WebView2Loader.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\assets\web\**\*">
+      <Link>web\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
