@@ -2,7 +2,7 @@
 
 > **单文件分发**：构建产物是单个 `OsuTrainerXSlim.exe`（约 3.6 MB，内嵌全部依赖与 web 资源）。
 > 首次启动会把分析器资源解包到 `%LOCALAPPDATA%\OsuTrainerXSlim\web\<版本>`，之后直接复用。
-> 运行位置：放在普通目录（如 `D:\APPs\OsuTrainerXSlim`）里运行；放在 `C:\Users\96549\Documents\vibe\osu\` 工作区目录下时该目录带沙箱 ACL，读不到 osu! 内存。
+> 运行位置：放在普通目录（如 `D:\APPs\OsuTrainerXSlim`）里运行；放在 `D:\vibe\osu\` 工作区目录下时该目录带沙箱 ACL，读不到 osu! 内存。
 > 需要系统自带 WebView2 运行时（Win10/11 默认已有）。
 > 构建后执行 `build-to-d.cmd` 自动部署单文件 exe。
 

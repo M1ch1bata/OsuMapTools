@@ -61,7 +61,7 @@ dotnet build -c Release
 
 ## 运行约束（审查时注意）
 
-1. **不能放在工作区目录运行**：`C:\Users\96549\Documents\vibe\osu\` 带沙箱 ACL，
+1. **不能放在工作区目录运行**：`D:\vibe\osu\` 带沙箱 ACL，
    进程被限制后读不到 osu! 内存，必须放 `D:\APPs\...` 或桌面等普通目录。
 2. 需要系统 WebView2 运行时（Win10/11 自带）。
 3. 内存读取要求 osu! 与工具权限一致；管理员运行的 osu! 需要管理员运行本工具。

@@ -4,11 +4,11 @@ rem (the C:\Users\...\Documents\vibe\osu workspace carries sandbox ACLs,
 rem  so the app must run from a normal folder such as D:\APPs\OsuTrainerXSlim)
 
 setlocal
-set DOTNET=C:\Users\96549\Documents\vibe\osu\_analysis\dotnetsdk\sdk8\dotnet.exe
-set DOTNET_CLI_HOME=C:\Users\96549\Documents\vibe\osu\OsuTrainerX\.dotnet-home
-set NUGET_PACKAGES=C:\Users\96549\Documents\vibe\osu\OsuTrainerX\.nuget
-set NUGET_HTTP_CACHE_PATH=C:\Users\96549\Documents\vibe\osu\OsuTrainerX\.nuget-http
-set TMP=C:\Users\96549\Documents\vibe\osu\OsuTrainerX\.tmp
+set DOTNET=D:\vibe\osu\_analysis\dotnetsdk\sdk8\dotnet.exe
+set DOTNET_CLI_HOME=D:\vibe\osu\OsuTrainerX\.dotnet-home
+set NUGET_PACKAGES=D:\vibe\osu\OsuTrainerX\.nuget
+set NUGET_HTTP_CACHE_PATH=D:\vibe\osu\OsuTrainerX\.nuget-http
+set TMP=D:\vibe\osu\OsuTrainerX\.tmp
 set TEMP=%TMP%
 
 cd /d "%~dp0src\Slim.App"
