@@ -54,7 +54,6 @@ namespace OsuMapTools
         private bool _closed;
         private readonly System.Threading.CancellationTokenSource _lifetime =
             new System.Threading.CancellationTokenSource();
-        private double _tosuStars;
 
         public MainWindow()
         {
@@ -120,13 +119,8 @@ namespace OsuMapTools
 
         private void OnTosuStars(double stars)
         {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                if (FollowCheck == null || FollowCheck.IsChecked != true) return;
-                if (stars <= 0 || Math.Abs(stars - _tosuStars) < 0.005) return;
-                _tosuStars = stars;
-                if (StarText != null && _isMania) StarText.Text = stars.ToString("0.00", CultureInfo.InvariantCulture) + "星";
-            }));
+            // Intentionally ignored: tosu only reports the original map's star, while the
+            // difficulty row must show the star of the map that will be exported.
         }
 
         private void OnTosuStatus(string status)
@@ -157,8 +151,7 @@ namespace OsuMapTools
         {
             if (FollowCheck != null && FollowCheck.IsChecked != true)
             {
-                _tosuStars = 0;
-                SchedulePreview();
+                    SchedulePreview();
             }
         }
 
@@ -242,8 +235,7 @@ namespace OsuMapTools
                 _sourcePath = path;
                 _sourceText = text;
                 _sourceMap = map;
-                _tosuStars = 0;
-
+    
                 UpdateBanner(_sourceMap, path);
                 UpdateNumericColumn(_sourceMap.KeyCount, null);
                 _pattern = null;
@@ -687,10 +679,10 @@ namespace OsuMapTools
                     return;
                 }
 
-                var starValue = _tosuStars > 0
-                    ? _tosuStars
-                    : (result.OsuStar > 0 ? result.OsuStar : result.Star);
-                var starFormat = (_tosuStars > 0 || result.OsuStar > 0) ? "0.00" : "0.0";
+                // The star must describe the transformed beatmap. tosu only knows the original
+                // map, so it must never override this value (otherwise it looks "stuck").
+                var starValue = result.OsuStar > 0 ? result.OsuStar : result.Star;
+                var starFormat = result.OsuStar > 0 ? "0.00" : "0.0";
                 UpdateResultPattern(result.Pattern);
                 UpdateSourcePattern(result.SourcePattern, result.SourceModeTag);
                 UpdateNumericColumn(result.Keys, result.Lv);
