@@ -101,7 +101,7 @@ export function estDiff(sr, lnRatio, columnCount, useExtended = false, enableAlw
 
     const rcTable = keys.RC[useExtended ? "extended" : "default"] ?? keys.RC.default;
     const rcDiff = intervalLookup(sr, rcTable, "Unknown RC difficulty");
-    if (lnRatio < 0.15 && !enableAlwaysShowLNDifficulty) return rcDiff;
+    if (!(lnRatio >= 0.15) && !enableAlwaysShowLNDifficulty) return rcDiff;
 
     const lnTable = keys.LN?.[useExtended ? "extended" : "default"] ?? keys.LN?.default;
     if (!lnTable) return rcDiff;

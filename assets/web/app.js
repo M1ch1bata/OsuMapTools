@@ -90,7 +90,10 @@ async function analyze(text, rate, id) {
         difficulty: (function () {
             const combined = estDiff(dan.star, parsed.lnRatio, parsed.columnCount);
             const sep = combined.indexOf(' || ');
-            return sep >= 0 ? dan.estDiff + combined.substring(sep) : dan.estDiff;
+            if (sep < 0) return dan.estDiff;
+            const lnPart = combined.substring(sep);
+            // Azusa returns an RC-only label; other estimators may already include the LN part.
+            return dan.estDiff.includes(' || ') ? dan.estDiff : dan.estDiff + lnPart;
         })(),
         osuStar: osuStar,
         lv: lv,
