@@ -19,7 +19,7 @@
 - 修改 **OD / HP**（未改动时不写入）
 - **FULL LN**：把所有音符变成 LN，尾部留 1/f 拍缝隙（松散 1/2、标准 1/4、密集 1/8，或自定义 1–16）；间隔不足 1/f 拍或每列最后一件保持单点。标准（1/4）与 NOODLES 谱面的规则一致；**无缝（seamless）** 让 LN 尾与下一件头完全重合（0 ms），供特殊需求使用
 - **RICE**：把 LN 变成单点（Lazer `ManiaModHoldOff`）
-- **Release**：保持 LN 头不变，按 `min(d/2, 拍长/f)` 随机生成尾判（f = 2/3/4/5/6/8）
+- **Release**：保持 LN 头不变，按 `min(d/2, 拍长/f)` 随机生成尾判（f = 2/3/4/5/6/8），并可设置**最小缝** `1/N` 拍（默认 1/4，范围 1–16）；空间不足时保持单点，最小缝参数不会写入难度名
 - 自动清理视频、故事板与 break（输出更干净）
 
 ### 难度预览
@@ -84,6 +84,7 @@ OsuMapTools.exe "map.osu" --od 8 --hp 7 --out "D:\out" --no-pitch --generate
 | `--mode keep\|invert\|holdoff\|release` | 音符处理 |
 | `--strength loose\|std\|dense\|seamless` | FULL LN 缝隙 |
 | `--gap <1-16>` | 自定义 FULL LN 缝隙（1/N 拍） |
+| `--release-gap <1-16>` | Release 最小缝（1/N 拍，默认 4） |
 | `--no-follow` | 不自动跟随 osu! 当前谱面 |
 | `--out <dir>` | 外部输出根目录 |
 | `--no-pitch` | 关闭保持音高（变调） |
