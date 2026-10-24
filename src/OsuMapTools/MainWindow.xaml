@@ -197,7 +197,7 @@
 
         <!-- difficulty -->
         <Border Grid.Row="4" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}"
-                BorderThickness="1" CornerRadius="10" Padding="16,10" Margin="0,0,0,8">
+                BorderThickness="1" CornerRadius="10" Padding="16,7" Margin="0,0,0,6">
             <Grid VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -217,8 +217,8 @@
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="段位" Foreground="{StaticResource Muted}" FontSize="10" />
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,1,0,0" VerticalAlignment="Center">
                     <TextBlock x:Name="DanText" Text="—" Foreground="{StaticResource Fg}"
-                               FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"
-                               MinHeight="24" VerticalAlignment="Center" />
+                               FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"
+                               MinHeight="22" VerticalAlignment="Center" />
                     <TextBlock x:Name="LnText" Text="" Foreground="{StaticResource Accent}"
                                FontSize="11" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
                 </StackPanel>
@@ -229,8 +229,8 @@
 
                 <TextBlock Grid.Row="0" Grid.Column="3" Text="键型" Foreground="{StaticResource Muted}" FontSize="10" />
                 <TextBlock Grid.Row="1" Grid.Column="3" x:Name="PatternText" Text="—"
-                           Foreground="{StaticResource Accent}" FontSize="16" FontWeight="SemiBold"
-                           TextWrapping="Wrap" MinHeight="24" VerticalAlignment="Center" Margin="0,1,0,0" />
+                           Foreground="{StaticResource Accent}" FontSize="15" FontWeight="SemiBold"
+                           TextWrapping="Wrap" MinHeight="22" VerticalAlignment="Center" Margin="0,1,0,0" />
             </Grid>
         </Border>
 
