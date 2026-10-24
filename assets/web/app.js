@@ -2,8 +2,9 @@ import { analyzeEtternaFromText } from './js/ett/calc.js';
 import { runDanielEstimatorFromText } from './js/estimator/danielEstimator.js';
 import { runAzusaEstimatorFromText } from './js/estimator/azusaEstimator.js';
 import { runSunnyEstimatorFromText } from './js/estimator/sunnyEstimator.js';
+import { runSunnyWindowEstimatorFromText } from './js/estimator/sunnyWindowEstimator.js';
 import { OsuFileParser } from './js/parser/osuFileParser.js';
-import { estDiff } from './js/estimator/reworkEstimatorUtils.js';
+import { estDiff, estDiff2 } from './js/estimator/reworkEstimatorUtils.js';
 import { initRosu } from './js/rosu/rosu.js';
 import { ROSU_WASM_B64 } from './js/rosu/rosu_wasm.js';
 import { analyzePatternFromText } from './js/patterns/service.js';
@@ -68,6 +69,21 @@ async function analyze(text, rate, id) {
         }
     }
 
+    // 4K: Azusa only rates RC (LN tails are ignored). Use the LN-specific SunnyWindow
+    // star for the LN part so FULL LN tail length actually affects the displayed LN dan.
+    let lnLabel = null;
+    const tryLnStar = parsed.columnCount === 4 && parsed.lnRatio >= 0.15;
+    if (tryLnStar) {
+        try {
+            const sw = runSunnyWindowEstimatorFromText(text, { speedRate: rate, enableAnalyzeLN: true });
+            const lnStar = Number(sw.lnStar);
+            if (Number.isFinite(lnStar) && lnStar > 0) {
+                const parts = estDiff2(sw.star, lnStar, 4).split('||');
+                lnLabel = parts.length > 1 ? parts[1].trim() : null;
+            }
+        } catch (e) { }
+    }
+
     stage('osu');
     let osuStar = null;
     try {
@@ -88,11 +104,14 @@ async function analyze(text, rate, id) {
             star: dan.star,
         },
         difficulty: (function () {
+            if (tryLnStar) {
+                // 4K: LN part comes only from the LN-specific star; omit it when lnStar <= 0.
+                return lnLabel ? dan.estDiff + ' || ' + lnLabel : dan.estDiff;
+            }
             const combined = estDiff(dan.star, parsed.lnRatio, parsed.columnCount);
             const sep = combined.indexOf(' || ');
             if (sep < 0) return dan.estDiff;
             const lnPart = combined.substring(sep);
-            // Azusa returns an RC-only label; other estimators may already include the LN part.
             return dan.estDiff.includes(' || ') ? dan.estDiff : dan.estDiff + lnPart;
         })(),
         osuStar: osuStar,

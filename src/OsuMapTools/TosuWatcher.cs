@@ -21,6 +21,8 @@ namespace OsuMapTools
         private ClientWebSocket _ws;
         private string _lastPath;
 
+        public string CurrentPath => _lastPath;
+
         public TosuWatcher(Action<string> onMap, Action<string> onStatus = null, Action<double> onStars = null)
         {
             _onMap = onMap;

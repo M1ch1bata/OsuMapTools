@@ -45,7 +45,7 @@ function convertHitObjects(objects, keys) {
     function finishHolds(time) {
         let earliest = findEarliestUpcomingRelease(holdingUntil);
 
-        while (earliest < time) {
+        while (Number.isFinite(earliest) && earliest <= time) {
             for (let k = 0; k < keys; k += 1) {
                 if (holdingUntil[k] === earliest) {
                     if (earliest > lastRow.Time) {
@@ -71,16 +71,27 @@ function convertHitObjects(objects, keys) {
         }
     }
 
-    function addNote(column, time) {
-        finishHolds(time);
-
+    function ensureEventRow(column, time) {
         if (time > lastRow.Time) {
             lastRow = createTimeItem(time, Array.from({ length: keys }, () => NoteType.NOTHING));
             output.push(lastRow);
             for (let k = 0; k < keys; k += 1) {
                 if (holdingUntil[k] != null) lastRow.Data[k] = NoteType.HOLDBODY;
             }
+        } else if (time === lastRow.Time && lastRow.Data[column] === NoteType.HOLDTAIL) {
+            // Seamless FULL LN: tail and next head share the same timestamp. The pattern
+            // model cannot keep a tail and a head in one cell, so open a second row.
+            lastRow = createTimeItem(time, Array.from({ length: keys }, () => NoteType.NOTHING));
+            output.push(lastRow);
+            for (let k = 0; k < keys; k += 1) {
+                if (holdingUntil[k] != null) lastRow.Data[k] = NoteType.HOLDBODY;
+            }
         }
+    }
+
+    function addNote(column, time) {
+        finishHolds(time);
+        ensureEventRow(column, time);
 
         const cur = lastRow.Data[column];
         if (cur === NoteType.NOTHING) {
@@ -94,14 +105,7 @@ function convertHitObjects(objects, keys) {
 
     function startHold(column, time, endTime) {
         finishHolds(time);
-
-        if (time > lastRow.Time) {
-            lastRow = createTimeItem(time, Array.from({ length: keys }, () => NoteType.NOTHING));
-            output.push(lastRow);
-            for (let k = 0; k < keys; k += 1) {
-                if (holdingUntil[k] != null) lastRow.Data[k] = NoteType.HOLDBODY;
-            }
-        }
+        ensureEventRow(column, time);
 
         const cur = lastRow.Data[column];
         if (cur === NoteType.NOTHING || cur === NoteType.NORMAL) {

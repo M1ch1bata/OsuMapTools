@@ -29,10 +29,25 @@ namespace OsuMapTools
                 a.Handled = true;
             };
 
+            var headless = e.Args.Any(a => a.Equals("--generate", StringComparison.OrdinalIgnoreCase));
+            string cliError;
+            if (headless && !ValidateCli(e.Args, out cliError))
+            {
+                LogText("CLI: " + cliError);
+                Shutdown(2);
+                return;
+            }
+
             bool createdNew;
             _mutex = new System.Threading.Mutex(true, "OsuMapTools_SingleInstance", out createdNew);
             if (!createdNew)
             {
+                if (headless)
+                {
+                    LogText("CLI: another OsuMapTools instance is already running");
+                    Shutdown(2);
+                    return;
+                }
                 MessageBox.Show("OsuMapTools 已经在运行，请先关闭已有窗口。", "OsuMapTools",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 Shutdown();
@@ -56,6 +71,18 @@ namespace OsuMapTools
 
             var window = new MainWindow();
             MainWindow = window;
+
+            if (e.Args.Any(a => a.Equals("--generate", StringComparison.OrdinalIgnoreCase)))
+            {
+                var mapArg = e.Args.FirstOrDefault(a => a.EndsWith(".osu", StringComparison.OrdinalIgnoreCase)
+                                                        && File.Exists(a));
+                if (mapArg == null || !File.Exists(mapArg))
+                {
+                    LogText("CLI: no valid .osu map argument for --generate");
+                    Shutdown(2);
+                    return;
+                }
+            }
 
             var hasMapArg = e.Args.Length > 0 && !e.Args[0].StartsWith("--", StringComparison.Ordinal);
             if (hasMapArg && !File.Exists(e.Args[0]))
@@ -112,6 +139,75 @@ namespace OsuMapTools
             }
         }
 
+        private static bool ValidateCli(string[] args, out string error)
+        {
+            error = null;
+            string[] valueOptions = { "--rate", "--bpm", "--od", "--hp", "--mode", "--strength", "--gap", "--release-gap", "--out" };
+            foreach (var opt in valueOptions)
+            {
+                int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
+                if (i < 0) continue;
+                if (i + 1 >= args.Length || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    error = "缺少 " + opt + " 的参数值";
+                    return false;
+                }
+            }
+
+            foreach (var opt in new[] { "--rate", "--bpm", "--od", "--hp" })
+            {
+                int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
+                if (i < 0) continue;
+                double v;
+                if (!double.TryParse(args[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out v)
+                    || double.IsNaN(v) || double.IsInfinity(v))
+                {
+                    error = opt + " 的参数不是有效数字：" + args[i + 1];
+                    return false;
+                }
+            }
+
+            foreach (var opt in new[] { "--mode", "--strength" })
+            {
+                int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
+                if (i < 0) continue;
+                var v = args[i + 1];
+                var allowed = opt == "--mode"
+                    ? new[] { "keep", "invert", "holdoff", "release" }
+                    : new[] { "loose", "std", "dense", "seamless" };
+                if (!allowed.Contains(v, StringComparer.OrdinalIgnoreCase))
+                {
+                    error = opt + " 的参数无效：" + v;
+                    return false;
+                }
+            }
+
+            foreach (var opt in new[] { "--gap", "--release-gap" })
+            {
+                int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
+                if (i < 0) continue;
+                int v;
+                if (!int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out v) || v < 1 || v > 16)
+                {
+                    error = opt + " 需要 1–16 的整数：" + args[i + 1];
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static void LogText(string text)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(LogPath);
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(LogPath, "[" + DateTime.Now.ToString("O") + "] " + text + Environment.NewLine);
+            }
+            catch { }
+        }
+
         private static void Log(Exception ex)
         {
             if (ex == null) return;
@@ -130,16 +226,20 @@ namespace OsuMapTools
         {
             int i = Array.FindIndex(args, a => a.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (i < 0 || i + 1 >= args.Length) return null;
+            var token = args[i + 1];
+            if (token.StartsWith("--", StringComparison.Ordinal)) return null;
             double v;
-            if (!double.TryParse(args[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out v)) return null;
-            return v;
+            if (!double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out v)) return null;
+            return double.IsNaN(v) || double.IsInfinity(v) ? (double?)null : v;
         }
 
         private static string ParseString(string[] args, string key)
         {
             int i = Array.FindIndex(args, a => a.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (i < 0 || i + 1 >= args.Length) return null;
-            return args[i + 1];
+            var token = args[i + 1];
+            if (token.StartsWith("--", StringComparison.Ordinal)) return null;
+            return token;
         }
 
         private static int? ParseReleaseGap(string[] args)

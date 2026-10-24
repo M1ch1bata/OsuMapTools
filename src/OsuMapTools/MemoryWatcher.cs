@@ -82,6 +82,8 @@ namespace OsuMapTools
         private readonly Action<string> _onStatus;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private string _lastPath;
+
+        public string CurrentPath => _lastPath;
         private StructuredOsuMemoryReader _boundReader;
         private bool _triedWindowBinding;
         private string _lastStatus;

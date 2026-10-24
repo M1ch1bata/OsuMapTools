@@ -88,6 +88,7 @@ namespace OsuMapTools
 
                 _memory = new MemoryWatcher(OnExternalMap, OnMemoryStatus);
                 _memory.Start();
+                UpdateFollowStatus();
             }
             catch (Exception ex)
             {
@@ -145,14 +146,26 @@ namespace OsuMapTools
                 TosuStatus.Text = "内存 " + _memStatus + (string.IsNullOrEmpty(_tosuStatus) ? "" : " · " + _tosuStatus);
             else
                 TosuStatus.Text = _tosuStatus;
+            if (string.IsNullOrWhiteSpace(TosuStatus.Text) && FollowCheck.IsChecked == true)
+                TosuStatus.Text = "跟随已启用";
+            TosuStatus.Visibility = string.IsNullOrWhiteSpace(TosuStatus.Text)
+                ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private void FollowCheck_Changed(object sender, RoutedEventArgs e)
         {
-            if (FollowCheck != null && FollowCheck.IsChecked != true)
+            if (FollowCheck == null) return;
+            if (FollowCheck.IsChecked != true)
             {
-                    SchedulePreview();
+                SchedulePreview();
+                return;
             }
+
+            // Re-enabling follow should immediately adopt the current map instead of waiting
+            // for the next track change (watchers dedupe by _lastPath).
+            var path = _memory != null ? _memory.CurrentPath : null;
+            if (string.IsNullOrEmpty(path) && _tosu != null) path = _tosu.CurrentPath;
+            if (!string.IsNullOrEmpty(path) && File.Exists(path)) LoadFile(path);
         }
 
         private void Window_DragOver(object sender, DragEventArgs e)
@@ -473,6 +486,8 @@ namespace OsuMapTools
             var byBpm = BpmCheck.IsChecked == true;
             RateBox.IsEnabled = !byBpm;
             BpmBox.IsEnabled = byBpm;
+            if (RateSpin != null) RateSpin.IsEnabled = !byBpm;
+            if (BpmSpin != null) BpmSpin.IsEnabled = byBpm;
         }
 
         private void UpdateStrengthVisibility()
@@ -672,6 +687,7 @@ namespace OsuMapTools
         private async Task UpdatePreviewAsync()
         {
             if (_sourceMap == null || !_isMania) return;
+            if (_isGenerating) return;
             int version = ++_previewVersion;
 
             try
@@ -686,7 +702,9 @@ namespace OsuMapTools
                 _analysis.CancelPending();
                 string suffix;
                 var map = BuildTransformed(false, out suffix);
-                OutputPathText.Text = PredictOutputPath(suffix);
+                var predicted = PredictOutputPath(suffix);
+                OutputPathText.Text = predicted;
+                OutputPathText.ToolTip = predicted;
 
                 var result = await _analysis.AnalyzeAsync(map.Serialize(), GetRate(), _sourceText);
 
@@ -694,7 +712,7 @@ namespace OsuMapTools
 
                 if (!result.Ok)
                 {
-                    UpdateNumericColumn(result.Keys, result.Lv);
+                    UpdateNumericColumn(_sourceMap != null ? _sourceMap.KeyCount : result.Keys, result.Lv);
                     UpdateResultPattern(result.Pattern);
                     UpdateSourcePattern(result.SourcePattern, result.SourceModeTag);
                     StarText.Text = "—";
@@ -796,6 +814,8 @@ namespace OsuMapTools
                 OutputPathText.Text = "未做任何修改，无需生成";
                 return false;
             }
+            _debounce?.Stop();
+            _previewVersion++;
             _isGenerating = true;
             UpdateGenerateState();
             var sourcePath = _sourcePath;
@@ -810,6 +830,9 @@ namespace OsuMapTools
                 string outDir = GetOutputDirectory();
                 if (external && SameDirectory(outDir, originDir)) external = false;
                 if (external) Directory.CreateDirectory(outDir);
+
+                if (!GetKeepPitch() && rate < 0.2297)
+                    throw new InvalidOperationException("关闭“保持音高”时倍速不能低于 0.23x；请调高倍速或开启保持音高。");
 
                 var audioName = map.AudioFilename;
                 if (string.IsNullOrEmpty(audioName)) throw new InvalidOperationException("谱面没有 AudioFilename");
@@ -831,7 +854,9 @@ namespace OsuMapTools
                 else if (external)
                 {
                     if (!File.Exists(srcAudio)) throw new FileNotFoundException("找不到音频文件：" + srcAudio);
-                    File.Copy(srcAudio, Path.Combine(outDir, Path.GetFileName(audioName.Replace('/', '\\'))), true);
+                    var flattened = Path.GetFileName(audioName.Replace('/', '\\'));
+                    File.Copy(srcAudio, Path.Combine(outDir, flattened), true);
+                    map.AudioFilename = flattened;
                 }
 
                 if (external) CopyReferencedAssets(map, originDir, outDir);
@@ -844,7 +869,7 @@ namespace OsuMapTools
                 map.Save(outPath);
 
                 OutputPathText.Text = outPath;
-                OutputPathText.ToolTip = truncated ? "文件名过长，已截断" : null;
+                OutputPathText.ToolTip = outPath + (truncated ? "（文件名过长，已截断）" : "");
                 return true;
             }
             catch (OperationCanceledException)

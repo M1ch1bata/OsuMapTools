@@ -51,7 +51,7 @@
                     <CheckBox x:Name="FollowCheck" Content="跟随当前谱面" Foreground="{StaticResource Fg}"
                               FontSize="11" IsChecked="True"
                               Checked="FollowCheck_Changed" Unchecked="FollowCheck_Changed" />
-                    <TextBlock x:Name="TosuStatus" Text="" Visibility="Collapsed" />
+                    <TextBlock x:Name="TosuStatus" Text="" FontSize="10" Foreground="{StaticResource Muted}" Visibility="Collapsed" />
                     <Button Content="选择谱面…" Click="Browse_Click" Padding="8,3" Margin="0,4,0,0" />
                 </StackPanel>
             </Grid>
@@ -66,9 +66,9 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="15" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="RateBox" TextAlignment="Center" VerticalContentAlignment="Center" Text="1.0" Tag="rate" PreviewTextInput="Number_PreviewTextInput"
+                    <TextBox x:Name="RateBox" AutomationProperties.Name="倍速" TextAlignment="Center" VerticalContentAlignment="Center" Text="1.0" Tag="rate" PreviewTextInput="Number_PreviewTextInput"
                              LostFocus="Number_LostFocus" TextChanged="Setting_Changed" />
-                    <StackPanel Grid.Column="1">
+                    <StackPanel Grid.Column="1" x:Name="RateSpin">
                         <Button Content="▲" FontSize="5" Height="13" Padding="0" Tag="rate:1" Click="Spin_Click" />
                         <Button Content="▼" FontSize="5" Height="13" Padding="0" Tag="rate:-1" Click="Spin_Click" />
                     </StackPanel>
@@ -80,9 +80,9 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="15" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="BpmBox" TextAlignment="Center" VerticalContentAlignment="Center" Tag="bpm" PreviewTextInput="Number_PreviewTextInput"
+                    <TextBox x:Name="BpmBox" AutomationProperties.Name="BPM" TextAlignment="Center" VerticalContentAlignment="Center" Tag="bpm" PreviewTextInput="Number_PreviewTextInput"
                              LostFocus="Number_LostFocus" TextChanged="Setting_Changed" />
-                    <StackPanel Grid.Column="1">
+                    <StackPanel Grid.Column="1" x:Name="BpmSpin">
                         <Button Content="▲" FontSize="5" Height="13" Padding="0" Tag="bpm:1" Click="Spin_Click" />
                         <Button Content="▼" FontSize="5" Height="13" Padding="0" Tag="bpm:-1" Click="Spin_Click" />
                     </StackPanel>
@@ -243,10 +243,10 @@
             <Border Grid.Column="0" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}"
                     BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,8,0">
                 <TextBlock x:Name="OutputPathText" Text="—" Foreground="{StaticResource Fg}" FontSize="11"
-                           TextWrapping="Wrap" MaxHeight="30" />
+                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="18" />
             </Border>
             <Button Grid.Column="1" x:Name="GenerateButton" Content="生成" Click="Generate_Click"
-                    Padding="22,6" IsEnabled="False" FontWeight="SemiBold" />
+                    Padding="22,6" IsEnabled="False" FontWeight="SemiBold" IsDefault="True" />
         </Grid>
     </Grid>
 </Window>

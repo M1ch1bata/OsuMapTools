@@ -37,8 +37,8 @@
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" x:Name="StatusText" Foreground="{StaticResource Muted}"
                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-            <Button Grid.Column="1" Content="取消" Click="Cancel_Click" Padding="18,6" Margin="0,0,8,0" />
-            <Button Grid.Column="2" Content="载入" Click="Ok_Click" Padding="18,6" IsEnabled="False" x:Name="OkButton" />
+            <Button Grid.Column="1" Content="取消" Click="Cancel_Click" Padding="18,6" Margin="0,0,8,0" IsCancel="True" />
+            <Button Grid.Column="2" Content="载入" Click="Ok_Click" Padding="18,6" IsEnabled="False" x:Name="OkButton" IsDefault="True" />
         </Grid>
     </Grid>
 </Window>

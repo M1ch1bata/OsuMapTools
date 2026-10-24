@@ -153,8 +153,16 @@ namespace OsuMapTools
                     }
                     else if (section == "[Difficulty]" && t.StartsWith("CircleSize:", StringComparison.OrdinalIgnoreCase))
                     {
-                        int keys;
-                        if (int.TryParse(t.Substring(t.IndexOf(':') + 1).Trim(), out keys)) map.KeyCount = keys;
+                        double cs;
+                        var csText = t.Substring(t.IndexOf(':') + 1).Trim();
+                        if (double.TryParse(csText, NumberStyles.Float, CultureInfo.InvariantCulture, out cs))
+                        {
+                            // Match the JS parser: mania uses "0" for 10K and truncates decimal CircleSize.
+                            int keys = Math.Abs(cs) < 1e-9 ? 10 : (int)Math.Truncate(cs);
+                            if (keys < 1) keys = 1;
+                            if (keys > 18) keys = 18;
+                            map.KeyCount = keys;
+                        }
                     }
                     continue;
                 }
