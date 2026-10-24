@@ -11,6 +11,8 @@ if exist "C:\vibe-build\caches\tmp" set "TMP=C:\vibe-build\caches\tmp"
 if exist "%TMP%" set "TEMP=%TMP%"
 
 cd /d "%~dp0src\OsuMapTools"
+rem Switching from a single-file build leaves Costura-only outputs; build folder from clean.
+"%DOTNET%" clean -c Release >nul
 "%DOTNET%" build -c Release -p:FolderBuild=true -p:DisableFody=true || goto :error
 
 echo.
