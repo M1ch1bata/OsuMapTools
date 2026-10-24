@@ -249,6 +249,7 @@ namespace OsuMapTools
                 _pattern = null;
                 _modeTag = null;
                 UpdatePattern(null, null);
+                if (PatternInfoText != null) PatternInfoText.Visibility = Visibility.Collapsed;
                 StarText.Text = "—";
                 DanText.Text = "分析中…";
                 LnText.Visibility = Visibility.Collapsed;
@@ -333,11 +334,20 @@ namespace OsuMapTools
 
         private void RenderInfo()
         {
-            if (InfoText == null) return;
-            var suffix = string.IsNullOrEmpty(_pattern)
-                ? ""
-                : " · 键型 " + _pattern + (string.IsNullOrEmpty(_modeTag) ? "" : " " + _modeTag);
-            InfoText.Text = _infoBase + suffix;
+            if (InfoText != null)
+                InfoText.Text = _infoBase;
+
+            if (PatternInfoText == null) return;
+            if (string.IsNullOrEmpty(_pattern))
+            {
+                PatternInfoText.Text = "";
+                PatternInfoText.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            PatternInfoText.Text = "键型 " + _pattern +
+                                   (string.IsNullOrEmpty(_modeTag) ? "" : " " + _modeTag);
+            PatternInfoText.Visibility = Visibility.Visible;
         }
 
         private void UpdatePattern(string pattern, string modeTag)

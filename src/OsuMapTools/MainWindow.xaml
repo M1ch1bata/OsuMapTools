@@ -43,6 +43,8 @@
                     </Border>
                     <TextBlock x:Name="InfoText" Text="拖入 .osu 或点击选择" FontSize="10"
                                Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <TextBlock x:Name="PatternInfoText" Text="" FontSize="10" Foreground="{StaticResource Muted}"
+                               TextWrapping="Wrap" Margin="0,2,0,0" Visibility="Collapsed" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
