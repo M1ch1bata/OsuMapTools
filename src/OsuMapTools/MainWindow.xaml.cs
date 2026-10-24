@@ -472,6 +472,7 @@ namespace OsuMapTools
         {
             if (StrengthBox.SelectedIndex == 0) return 2;
             if (StrengthBox.SelectedIndex == 2) return 8;
+            if (StrengthBox.SelectedIndex == 3) return 0; // seamless
             return 4;
         }
 
@@ -480,6 +481,7 @@ namespace OsuMapTools
             if (ModeBox.SelectedIndex != (int)NoteMode.Invert) return "";
             if (StrengthBox.SelectedIndex == 0) return "loose";
             if (StrengthBox.SelectedIndex == 2) return "dense";
+            if (StrengthBox.SelectedIndex == 3) return "seamless";
             return "";
         }
 

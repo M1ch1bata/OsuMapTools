@@ -141,6 +141,7 @@ namespace OsuMapTools
             if (v == "loose") return 0;
             if (v == "std") return 1;
             if (v == "dense") return 2;
+            if (v == "seamless") return 3;
             return null;
         }
 

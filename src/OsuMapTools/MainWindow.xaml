@@ -149,8 +149,9 @@
                 <ComboBox Grid.Column="3" x:Name="StrengthBox" Margin="5,0,0,0" SelectedIndex="1"
                           SelectionChanged="Setting_Changed" Visibility="Collapsed">
                     <ComboBoxItem Content="松散（1/2 拍）" />
-                    <ComboBoxItem Content="标准（1/4 拍）" />
+                    <ComboBoxItem Content="标准（1/4 拍 · NOODLES）" />
                     <ComboBoxItem Content="密集（1/8 拍）" />
+                    <ComboBoxItem Content="无缝（0 缝）" />
                 </ComboBox>
             </Grid>
         </Border>

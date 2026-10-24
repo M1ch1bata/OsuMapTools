@@ -17,7 +17,7 @@
 ### 谱面修改
 
 - 修改 **OD / HP**（未改动时不写入）
-- **FULL LN**：把普通音符按 Lazer `ManiaModInvert` 规则变成 LN（松散 1/2 拍 / 标准 1/4 拍 / 密集 1/8 拍）
+- **FULL LN**：把所有音符变成 LN，尾部留 1/f 拍缝隙（松散 1/2、标准 1/4、密集 1/8）；间隔不足 1/f 拍或每列最后一件保持单点。标准（1/4）与 NOODLES 谱面的规则一致；**无缝（seamless）** 让 LN 尾与下一件头完全重合（0 ms），供特殊需求使用
 - **RICE**：把 LN 变成单点（Lazer `ManiaModHoldOff`）
 - **Release**：保持 LN 头不变，按 `min(d/2, 拍长/f)` 随机生成尾判（f = 2/3/4/5/6/8）
 - 自动清理视频、故事板与 break（输出更干净）
@@ -80,7 +80,7 @@ OsuMapTools.exe "map.osu" --od 8 --hp 7 --out "D:\out" --no-pitch --generate
 | `--bpm <bpm>` | 按目标 BPM 变速 |
 | `--od <v>` / `--hp <v>` | 覆盖 OD / HP |
 | `--mode keep\|invert\|holdoff\|release` | 音符处理 |
-| `--strength loose\|std\|dense` | FULL LN 缝隙 |
+| `--strength loose\|std\|dense\|seamless` | FULL LN 缝隙 |
 | `--out <dir>` | 外部输出根目录 |
 | `--no-pitch` | 关闭保持音高（变调） |
 | `--generate` | 生成后退出 |

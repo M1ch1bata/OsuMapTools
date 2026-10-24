@@ -17,27 +17,48 @@ namespace OsuMapTools
 
     public static class Transforms
     {
-        /// <summary>Lazer ManiaModInvert: every object becomes a hold, gap = min(d/2, beat/4), last object dropped.</summary>
+        /// <summary>
+        /// FULL LN (NOODLES rule): every object becomes a hold that ends `beat / division` before the
+        /// next object in the same column. If there is not enough room (gap &lt;= beat/division) or the
+        /// object is the last one in its column, it stays a tap.
+        /// division &lt;= 0 means "seamless": the hold ends exactly on the next object's head (0 ms gap).
+        /// </summary>
         public static void ApplyInvert(OsuFile map, int division)
         {
-            if (division < 1) division = 4;
             int keys = map.KeyCount <= 0 ? 4 : map.KeyCount;
+            bool seamless = division <= 0;
+            if (!seamless && division < 1) division = 4;
             var result = new List<HitObject>();
 
             foreach (var column in map.Objects.GroupBy(o => o.Column(keys)).OrderBy(g => g.Key))
             {
                 var objects = column.OrderBy(o => o.Time).ThenBy(o => o.SourceIndex).ToList();
-                for (int i = 0; i < objects.Count - 1; i++)
+                for (int i = 0; i < objects.Count; i++)
                 {
                     var current = objects[i];
-                    var next = objects[i + 1];
 
+                    // Last object in the column: no next object to measure against, keep it as a tap.
+                    if (i == objects.Count - 1)
+                    {
+                        current.MakeTap();
+                        result.Add(current);
+                        continue;
+                    }
+
+                    var next = objects[i + 1];
                     double d = next.Time - current.Time;
-                    double beat = map.BeatLengthAt(next.Time);
-                    double duration = Math.Max(d / 2.0, d - beat / division);
+                    double beat = map.BeatLengthAt(current.Time);
+                    double duration = seamless ? d : d - beat / division;
 
                     int end = current.Time + (int)Math.Floor(duration + 0.5);
-                    if (end <= current.Time) continue;
+                    // Sub-millisecond remainders (e.g. 87ms note on a 86.207ms quarter grid) are not
+                    // playable as holds; NOODLES-style maps keep them as taps.
+                    if (duration < 1.0 || end <= current.Time)
+                    {
+                        current.MakeTap();
+                        result.Add(current);
+                        continue;
+                    }
 
                     result.Add(MakeHold(current, end));
                 }
