@@ -819,6 +819,8 @@ namespace OsuMapTools
             _isGenerating = true;
             UpdateGenerateState();
             var sourcePath = _sourcePath;
+            string createdAudio = null;
+            bool audioPreExisted = false;
             try
             {
                 string suffix;
@@ -830,6 +832,8 @@ namespace OsuMapTools
                 string outDir = GetOutputDirectory();
                 if (external && SameDirectory(outDir, originDir)) external = false;
                 if (external) Directory.CreateDirectory(outDir);
+                CleanupStaleAudioTemps(outDir);
+                if (!SameDirectory(outDir, originDir)) CleanupStaleAudioTemps(originDir);
 
                 if (!GetKeepPitch() && rate < 0.2297)
                     throw new InvalidOperationException("关闭“保持音高”时倍速不能低于 0.23x；请调高倍速或开启保持音高。");
@@ -848,14 +852,19 @@ namespace OsuMapTools
                     var newName = Naming.Sanitize(Path.GetFileNameWithoutExtension(audioName) + " [" + speedTag + pitchTag + "].mp3");
                     var dstAudio = Path.Combine(outDir, newName);
 
+                    audioPreExisted = File.Exists(dstAudio);
                     await Task.Run(() => AudioProcessor.CreateRateAdjustedMp3(srcAudio, dstAudio, rate, keepPitch, _lifetime.Token), _lifetime.Token);
+                    createdAudio = dstAudio;
                     map.AudioFilename = newName;
                 }
                 else if (external)
                 {
                     if (!File.Exists(srcAudio)) throw new FileNotFoundException("找不到音频文件：" + srcAudio);
                     var flattened = Path.GetFileName(audioName.Replace('/', '\\'));
-                    File.Copy(srcAudio, Path.Combine(outDir, flattened), true);
+                    var flattenedPath = Path.Combine(outDir, flattened);
+                    audioPreExisted = File.Exists(flattenedPath);
+                    File.Copy(srcAudio, flattenedPath, true);
+                    createdAudio = flattenedPath;
                     map.AudioFilename = flattened;
                 }
 
@@ -874,6 +883,8 @@ namespace OsuMapTools
             }
             catch (OperationCanceledException)
             {
+                if (createdAudio != null && !audioPreExisted)
+                    try { if (File.Exists(createdAudio)) File.Delete(createdAudio); } catch { }
                 OutputPathText.Text = "已取消生成";
                 return false;
             }
@@ -886,6 +897,8 @@ namespace OsuMapTools
                     File.AppendAllText(System.IO.Path.Combine(dir, "error.log"), "[" + DateTime.Now.ToString("O") + "] generation: " + ex + Environment.NewLine);
                 }
                 catch { }
+                if (createdAudio != null && !audioPreExisted)
+                    try { if (File.Exists(createdAudio)) File.Delete(createdAudio); } catch { }
                 OutputPathText.Text = "生成失败：" + ex.Message;
                 OutputPathText.ToolTip = ex.ToString();
                 return false;
@@ -895,6 +908,19 @@ namespace OsuMapTools
                 _isGenerating = false;
                 UpdateGenerateState();
             }
+        }
+
+        private static void CleanupStaleAudioTemps(string dir)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return;
+                foreach (var file in Directory.EnumerateFiles(dir, "*.tmp-*.mp3"))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+            }
+            catch { }
         }
 
         /// <summary>Copies images / custom hit sounds referenced by the beatmap (excluding video/storyboard).</summary>

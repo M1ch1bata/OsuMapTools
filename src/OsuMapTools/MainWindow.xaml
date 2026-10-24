@@ -103,7 +103,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="15" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="OdBox" TextAlignment="Center" VerticalContentAlignment="Center" Tag="od" PreviewTextInput="Number_PreviewTextInput"
+                    <TextBox x:Name="OdBox" AutomationProperties.AutomationId="OdBox" TextAlignment="Center" VerticalContentAlignment="Center" Tag="od" PreviewTextInput="Number_PreviewTextInput"
                              LostFocus="Number_LostFocus" TextChanged="Setting_Changed" />
                     <StackPanel Grid.Column="1">
                         <Button Content="▲" FontSize="5" Height="13" Padding="0" Tag="od:1" Click="Spin_Click" />
@@ -242,10 +242,10 @@
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}"
                     BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,8,0">
-                <TextBlock x:Name="OutputPathText" Text="—" Foreground="{StaticResource Fg}" FontSize="11"
+                <TextBlock x:Name="OutputPathText" AutomationProperties.AutomationId="OutputPathText" Text="—" Foreground="{StaticResource Fg}" FontSize="11"
                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="18" />
             </Border>
-            <Button Grid.Column="1" x:Name="GenerateButton" Content="生成" Click="Generate_Click"
+            <Button Grid.Column="1" x:Name="GenerateButton" AutomationProperties.AutomationId="GenerateButton" Content="生成" Click="Generate_Click"
                     Padding="22,6" IsEnabled="False" FontWeight="SemiBold" IsDefault="True" />
         </Grid>
     </Grid>

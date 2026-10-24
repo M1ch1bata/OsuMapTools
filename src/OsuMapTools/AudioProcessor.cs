@@ -21,35 +21,55 @@ namespace OsuMapTools
                 throw new ArgumentException("rate must differ from 1.0");
 
             token.ThrowIfCancellationRequested();
-            ISampleProvider source = OpenSource(sourcePath);
-            if (token.CanBeCanceled) source = new CancellableSampleProvider(source, token);
-
-            if (source.WaveFormat.Channels == 1)
-                source = new MonoToStereoSampleProvider(source);
-
-            if (source.WaveFormat.SampleRate != TargetSampleRate)
-                source = new WdlResamplingSampleProvider(source, TargetSampleRate);
-
-            ISampleProvider processed = preservePitch
-                ? (ISampleProvider)new SoundTouchSampleProvider(source, rate)
-                : new SpeedUpSampleProvider(source, rate);
-            var wave16 = new SampleToWaveProvider16(processed);
-
-            var dir = Path.GetDirectoryName(destPath);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-            var temp = destPath + ".tmp-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".mp3";
-            try
+            using (var handle = OpenSource(sourcePath))
             {
-                MediaFoundationEncoder.EncodeToMp3(wave16, temp, TargetBitrate);
-                token.ThrowIfCancellationRequested();
-                if (File.Exists(destPath)) File.Delete(destPath);
-                File.Move(temp, destPath);
+                ISampleProvider source = handle.Provider;
+                if (token.CanBeCanceled) source = new CancellableSampleProvider(source, token);
+
+                if (source.WaveFormat.Channels == 1)
+                    source = new MonoToStereoSampleProvider(source);
+
+                if (source.WaveFormat.SampleRate != TargetSampleRate)
+                    source = new WdlResamplingSampleProvider(source, TargetSampleRate);
+
+                ISampleProvider processed = preservePitch
+                    ? (ISampleProvider)new SoundTouchSampleProvider(source, rate)
+                    : new SpeedUpSampleProvider(source, rate);
+                var wave16 = new SampleToWaveProvider16(processed);
+
+                var dir = Path.GetDirectoryName(destPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+                var temp = destPath + ".tmp-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".mp3";
+                try
+                {
+                    MediaFoundationEncoder.EncodeToMp3(wave16, temp, TargetBitrate);
+                    token.ThrowIfCancellationRequested();
+                    if (File.Exists(destPath)) File.Delete(destPath);
+                    File.Move(temp, destPath);
+                }
+                catch
+                {
+                    try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+                    throw;
+                }
             }
-            catch
+        }
+
+        private sealed class SourceHandle : IDisposable
+        {
+            public ISampleProvider Provider { get; }
+            private readonly IDisposable _owner;
+
+            public SourceHandle(ISampleProvider provider, IDisposable owner)
             {
-                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
-                throw;
+                Provider = provider;
+                _owner = owner;
+            }
+
+            public void Dispose()
+            {
+                try { _owner?.Dispose(); } catch { }
             }
         }
 
@@ -74,25 +94,37 @@ namespace OsuMapTools
             }
         }
 
-        private static ISampleProvider OpenSource(string path)
+        private static SourceHandle OpenSource(string path)
         {
             var ext = Path.GetExtension(path).ToLowerInvariant();
             if (ext == ".ogg")
-                return new VorbisSampleProvider(path);
+            {
+                var vorbis = new VorbisSampleProvider(path);
+                return new SourceHandle(vorbis, vorbis);
+            }
 
             try
             {
-                return new MediaFoundationReader(path).ToSampleProvider();
+                var reader = new MediaFoundationReader(path);
+                return new SourceHandle(reader.ToSampleProvider(), reader);
             }
             catch
             {
-                if (ext == ".mp3") return new Mp3FileReader(path).ToSampleProvider();
-                if (ext == ".wav") return new WaveFileReader(path).ToSampleProvider();
+                if (ext == ".mp3")
+                {
+                    var reader = new Mp3FileReader(path);
+                    return new SourceHandle(reader.ToSampleProvider(), reader);
+                }
+                if (ext == ".wav")
+                {
+                    var reader = new WaveFileReader(path);
+                    return new SourceHandle(reader.ToSampleProvider(), reader);
+                }
                 throw;
             }
         }
 
-        private sealed class VorbisSampleProvider : ISampleProvider
+        private sealed class VorbisSampleProvider : ISampleProvider, IDisposable
         {
             private readonly VorbisReader _reader;
 
@@ -107,6 +139,11 @@ namespace OsuMapTools
             public int Read(float[] buffer, int offset, int count)
             {
                 return _reader.ReadSamples(buffer, offset, count);
+            }
+
+            public void Dispose()
+            {
+                _reader.Dispose();
             }
         }
 

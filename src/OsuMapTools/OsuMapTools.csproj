@@ -12,7 +12,7 @@
     <RootNamespace>OsuMapTools</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>assets\osu.ico</ApplicationIcon>
-    <Version>0.1</Version>
+    <Version>0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,14 +27,17 @@
 
   <ItemGroup>
     <Resource Include="assets\osu.ico" />
-    <!-- single-file: embed web assets (extracted on first run) -->
+  </ItemGroup>
+
+  <!-- single-file build: embed web assets and the native loader (Costura/Fody) -->
+  <ItemGroup Condition="'$(FolderBuild)' != 'true'">
     <EmbeddedResource Include="..\..\assets\web\**\*" Exclude="..\..\assets\web\**\*.bak" LogicalName="webassets/%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- single-file: native WebView2 loader (costura64 convention) -->
     <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll" LogicalName="costura64.WebView2Loader.dll" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="..\..\assets\web\**\*">
+  <!-- folder build: ship loose web assets next to the exe -->
+  <ItemGroup Condition="'$(FolderBuild)' == 'true'">
+    <Content Include="..\..\assets\web\**\*" Exclude="..\..\assets\web\**\*.bak">
       <Link>web\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

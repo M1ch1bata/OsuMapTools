@@ -174,7 +174,14 @@ namespace OsuMapTools
                 }
 
                 if (t.Length == 0 || t.StartsWith("//")) continue;
-                map.Objects.Add(HitObject.Parse(t, idx++));
+                try
+                {
+                    map.Objects.Add(HitObject.Parse(t, idx++));
+                }
+                catch (FormatException)
+                {
+                    // A single malformed line must not make the whole beatmap unloadable.
+                }
             }
 
             map.TimingPoints.Sort((a, b) => a.Time.CompareTo(b.Time));
@@ -212,7 +219,20 @@ namespace OsuMapTools
 
         public void Save(string path)
         {
-            File.WriteAllText(path, Serialize(), new UTF8Encoding(false));
+            var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            var temp = path + ".tmp-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            try
+            {
+                File.WriteAllText(temp, Serialize(), new UTF8Encoding(false));
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);
+            }
+            catch
+            {
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+                throw;
+            }
         }
 
         /// <summary>BPM of the timing segment that covers the most time (matches osu!'s displayed main BPM).</summary>
@@ -458,6 +478,7 @@ namespace OsuMapTools
                 head.Add(line);
             }
             HeadLines = head;
+            RebuildTimingPointCache();
 
             foreach (var o in Objects)
             {
@@ -465,6 +486,27 @@ namespace OsuMapTools
                 if (o.EndTime.HasValue) o.EndTime = (int)Math.Round(o.EndTime.Value / rate);
                 if (o.IsHold && o.EndTime.HasValue) o.SampleData = o.EndTime.Value.ToString(CultureInfo.InvariantCulture) + ":" + o.SampleTail();
             }
+        }
+
+        private void RebuildTimingPointCache()
+        {
+            TimingPoints.Clear();
+            string section = "";
+            foreach (var line in HeadLines)
+            {
+                var t = line.Trim();
+                if (t.Length >= 2 && t[0] == '[' && t[t.Length - 1] == ']')
+                {
+                    section = t;
+                    continue;
+                }
+                if (section == "[TimingPoints]" && t.Length > 0 && !t.StartsWith("//"))
+                {
+                    TimingPoint tp;
+                    if (TimingPointTryParse(t, out tp)) TimingPoints.Add(tp);
+                }
+            }
+            TimingPoints.Sort((a, b) => a.Time.CompareTo(b.Time));
         }
 
         private static string ScaleTimingLine(string line, double rate)
