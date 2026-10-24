@@ -119,15 +119,28 @@ chrome.webview.addEventListener('message', async (ev) => {
         modeTag = report.ModeTag;
     } catch (e) { }
 
+    // Banner shows the pattern of the ORIGINAL map; the difficulty row shows the transformed map.
+    let sourcePattern = null;
+    let sourceModeTag = null;
+    if (typeof msg.sourceText === 'string') {
+        try {
+            const { report } = analyzePatternFromText(msg.sourceText, 1.0);
+            sourcePattern = report.Category;
+            sourceModeTag = report.ModeTag;
+        } catch (e) { }
+    }
+
     try {
         const result = await analyze(msg.text, typeof msg.rate === 'number' ? msg.rate : 1, msg.id);
         if (result === null || msg.id !== latestId || cancelled.has(msg.id)) return;
         result.pattern = pattern;
         result.modeTag = modeTag;
+        result.sourcePattern = sourcePattern;
+        result.sourceModeTag = sourceModeTag;
         chrome.webview.postMessage({ type: 'result', id: msg.id, ok: true, result });
     } catch (err) {
         if (msg.id !== latestId || cancelled.has(msg.id)) return;
-        chrome.webview.postMessage({ type: 'result', id: msg.id, ok: false, error: String(err && err.message || err), pattern, modeTag });
+        chrome.webview.postMessage({ type: 'result', id: msg.id, ok: false, error: String(err && err.message || err), pattern, modeTag, sourcePattern, sourceModeTag });
     }
 });
 

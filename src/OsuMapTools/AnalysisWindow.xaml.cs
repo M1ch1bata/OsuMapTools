@@ -26,6 +26,8 @@ namespace OsuMapTools
         public double OsuStar;
         public string Pattern;
         public string ModeTag;
+        public string SourcePattern;
+        public string SourceModeTag;
         public double? Lv;
 
         public float Overall { get { return Msd.Length > 0 ? Msd[0] : 0f; } }
@@ -145,7 +147,7 @@ namespace OsuMapTools
             catch { }
         }
 
-        public async Task<AnalysisResult> AnalyzeAsync(string osuText, double rate)
+        public async Task<AnalysisResult> AnalyzeAsync(string osuText, double rate, string sourceText = null)
         {
             if (!await EnsureInitializedAsync())
                 return new AnalysisResult { Ok = false, Error = _initError ?? "分析引擎初始化超时" };
@@ -156,7 +158,9 @@ namespace OsuMapTools
 
             var payload = "{\"type\":\"analyze\",\"id\":" + id +
                           ",\"rate\":" + rate.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture) +
-                          ",\"text\":\"" + EscapeJson(osuText) + "\"}";
+                          ",\"text\":\"" + EscapeJson(osuText) + "\"" +
+                          (string.IsNullOrEmpty(sourceText) ? "" : ",\"sourceText\":\"" + EscapeJson(sourceText) + "\"") +
+                          "}";
 
             Web.CoreWebView2.PostWebMessageAsJson(payload);
 
@@ -223,6 +227,10 @@ namespace OsuMapTools
 
                 if (patternMatch.Success) r.Pattern = patternMatch.Groups[1].Value;
                 if (modeTagMatch.Success) r.ModeTag = modeTagMatch.Groups[1].Value;
+                var sourcePatternMatch = Regex.Match(json, "\"sourcePattern\"\\s*:\\s*\"([^\"]*)\"");
+                var sourceModeTagMatch = Regex.Match(json, "\"sourceModeTag\"\\s*:\\s*\"([^\"]*)\"");
+                if (sourcePatternMatch.Success) r.SourcePattern = sourcePatternMatch.Groups[1].Value;
+                if (sourceModeTagMatch.Success) r.SourceModeTag = sourceModeTagMatch.Groups[1].Value;
                 var lv = Regex.Match(json, "\"lv\"\\s*:\\s*(null|-?[0-9.eE+]+)");
                 if (lv.Success && lv.Groups[1].Value != "null")
                     r.Lv = double.Parse(lv.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);

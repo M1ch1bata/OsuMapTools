@@ -350,16 +350,26 @@ namespace OsuMapTools
             PatternInfoText.Visibility = Visibility.Visible;
         }
 
-        private void UpdatePattern(string pattern, string modeTag)
+        /// <summary>Banner line: pattern of the original (loaded) beatmap.</summary>
+        private void UpdateSourcePattern(string pattern, string modeTag)
         {
             _pattern = pattern;
             _modeTag = modeTag;
             RenderInfo();
-            if (PatternText != null)
-            {
-                PatternText.Text = string.IsNullOrEmpty(pattern) ? "—" : pattern;
-                PatternText.ToolTip = string.IsNullOrEmpty(pattern) ? null : pattern;
-            }
+        }
+
+        /// <summary>Difficulty row: pattern of the transformed beatmap that will be exported.</summary>
+        private void UpdateResultPattern(string pattern)
+        {
+            if (PatternText == null) return;
+            PatternText.Text = string.IsNullOrEmpty(pattern) ? "—" : pattern;
+            PatternText.ToolTip = string.IsNullOrEmpty(pattern) ? null : pattern;
+        }
+
+        private void UpdatePattern(string pattern, string modeTag)
+        {
+            UpdateSourcePattern(pattern, modeTag);
+            UpdateResultPattern(pattern);
         }
 
         private void UpdateBanner(OsuFile map, string path)
@@ -660,14 +670,15 @@ namespace OsuMapTools
                 var map = BuildTransformed(false, out suffix);
                 OutputPathText.Text = PredictOutputPath(suffix);
 
-                var result = await _analysis.AnalyzeAsync(map.Serialize(), GetRate());
+                var result = await _analysis.AnalyzeAsync(map.Serialize(), GetRate(), _sourceText);
 
                 if (version != _previewVersion) return;
 
                 if (!result.Ok)
                 {
                     UpdateNumericColumn(result.Keys, result.Lv);
-                    UpdatePattern(result.Pattern, result.ModeTag);
+                    UpdateResultPattern(result.Pattern);
+                    UpdateSourcePattern(result.SourcePattern, result.SourceModeTag);
                     StarText.Text = "—";
                     DanText.Text = "无法分析";
                     LnText.Visibility = Visibility.Collapsed;
@@ -680,7 +691,8 @@ namespace OsuMapTools
                     ? _tosuStars
                     : (result.OsuStar > 0 ? result.OsuStar : result.Star);
                 var starFormat = (_tosuStars > 0 || result.OsuStar > 0) ? "0.00" : "0.0";
-                UpdatePattern(result.Pattern, result.ModeTag);
+                UpdateResultPattern(result.Pattern);
+                UpdateSourcePattern(result.SourcePattern, result.SourceModeTag);
                 UpdateNumericColumn(result.Keys, result.Lv);
                 StarText.Text = starValue.ToString(starFormat, CultureInfo.InvariantCulture) + "星";
                 DanText.Text = FormatDan(result.RcDifficulty, result.DanLabel);
