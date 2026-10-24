@@ -484,6 +484,9 @@ namespace OsuMapTools
             if (CustomGapPanel != null)
                 CustomGapPanel.Visibility = visible && StrengthBox.SelectedIndex == 4
                     ? Visibility.Visible : Visibility.Collapsed;
+            if (ReleaseGapPanel != null)
+                ReleaseGapPanel.Visibility = ModeBox.SelectedIndex == (int)NoteMode.Release
+                    ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void SchedulePreview()
@@ -547,6 +550,29 @@ namespace OsuMapTools
             if (StrengthBox.SelectedIndex == 3) return 0; // seamless
             if (StrengthBox.SelectedIndex == 4) return GetCustomGap();
             return 4;
+        }
+
+        private int GetReleaseMinDivision()
+        {
+            int value;
+            if (ReleaseGapBox == null || !int.TryParse(ReleaseGapBox.Text.Trim(), out value)) return 4;
+            return Math.Min(16, Math.Max(1, value));
+        }
+
+        private void ReleaseGap_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (ReleaseGapBox == null) return;
+            ReleaseGapBox.Text = GetReleaseMinDivision().ToString(CultureInfo.InvariantCulture);
+        }
+
+        public void SetReleaseGap(int division)
+        {
+            division = Math.Min(16, Math.Max(1, division));
+            if (ModeBox != null) ModeBox.SelectedIndex = (int)NoteMode.Release;
+            if (ReleaseGapBox != null) ReleaseGapBox.Text = division.ToString(CultureInfo.InvariantCulture);
+            UpdateStrengthVisibility();
+            UpdateGenerateState();
+            SchedulePreview();
         }
 
         private int GetCustomGap()
@@ -625,7 +651,7 @@ namespace OsuMapTools
             }
             else if (mode == NoteMode.Release)
             {
-                Transforms.ApplyRelease(map, new Random());
+                Transforms.ApplyRelease(map, new Random(), GetReleaseMinDivision());
             }
 
             var od = GetOptional(OdBox.Text, 0, 10);

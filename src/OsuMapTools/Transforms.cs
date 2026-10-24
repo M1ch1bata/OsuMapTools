@@ -82,9 +82,10 @@ namespace OsuMapTools
 
         /// <summary>
         /// Release: rebuild every column from object heads, each note becomes a hold whose release-to-next-press
-        /// gap is a random beat fraction, clamped to half the distance. The last object in each column stays a note.
+        /// gap is a random beat fraction, clamped to half the distance. The gap never goes below beat/minDivision;
+        /// objects without enough room stay taps. The last object in each column stays a note.
         /// </summary>
-        public static void ApplyRelease(OsuFile map, Random rng)
+        public static void ApplyRelease(OsuFile map, Random rng, int minDivision)
         {
             int keys = map.KeyCount <= 0 ? 4 : map.KeyCount;
             var result = new List<HitObject>();
@@ -109,10 +110,17 @@ namespace OsuMapTools
 
                     int division = ReleaseDivisions[rng.Next(ReleaseDivisions.Length)];
                     double gap = Math.Min(d / 2.0, beat / division);
+                    double minGap = beat / Math.Max(1, minDivision);
+                    if (gap < minGap) gap = minGap;
                     double duration = d - gap;
 
                     int end = current.Time + (int)Math.Floor(duration + 0.5);
-                    if (end <= current.Time) continue;
+                    if (duration < 1.0 || end <= current.Time)
+                    {
+                        current.MakeTap();
+                        result.Add(current);
+                        continue;
+                    }
 
                     result.Add(MakeHold(current, end));
                 }

@@ -165,6 +165,15 @@
                              LostFocus="CustomGap_LostFocus" TextChanged="Setting_Changed" />
                     <TextBlock Text="拍" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
                 </StackPanel>
+
+                <StackPanel Grid.Column="4" x:Name="ReleaseGapPanel" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="6,0,0,0" Visibility="Collapsed">
+                    <TextBlock Text="最小缝 1/" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                    <TextBox x:Name="ReleaseGapBox" Width="40" Margin="4,0" Text="4" TextAlignment="Center"
+                             VerticalContentAlignment="Center" PreviewTextInput="Number_PreviewTextInput"
+                             LostFocus="ReleaseGap_LostFocus" TextChanged="Setting_Changed" />
+                    <TextBlock Text="拍" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                </StackPanel>
             </Grid>
         </Border>
 
