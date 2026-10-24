@@ -48,6 +48,9 @@ namespace OsuMapTools
 
         private string _memStatus = "";
         private bool _isGenerating;
+        private string _infoBase = "";
+        private string _pattern;
+        private string _modeTag;
         private bool _closed;
         private readonly System.Threading.CancellationTokenSource _lifetime =
             new System.Threading.CancellationTokenSource();
@@ -242,6 +245,10 @@ namespace OsuMapTools
                 _tosuStars = 0;
 
                 UpdateBanner(_sourceMap, path);
+                UpdateNumericColumn(_sourceMap.KeyCount, null);
+                _pattern = null;
+                _modeTag = null;
+                UpdatePattern(null, null);
                 StarText.Text = "—";
                 DanText.Text = "分析中…";
                 LnText.Visibility = Visibility.Collapsed;
@@ -266,11 +273,13 @@ namespace OsuMapTools
                     StarText.Text = "—";
                     DanText.Text = "非Mania谱面";
                     LnText.Visibility = Visibility.Collapsed;
+                    UpdateNumericColumn(0, null);
                     MsdText.Text = "—";
                     OutputPathText.Text = "非Mania谱面";
                     return;
                 }
 
+                UpdateMsdLabel(false);
                 UpdateGenerateState();
                 SchedulePreview();
             }
@@ -296,6 +305,53 @@ namespace OsuMapTools
             }
         }
 
+        private void UpdateMsdLabel(bool lv)
+        {
+            if (MsdLabel != null) MsdLabel.Text = lv ? "LV" : "MSD";
+        }
+
+        /// <summary>
+        /// 4K shows Etterna MSD; 6K shows the xxy level (LV); every other key count has no
+        /// agreed numeric metric, so the whole column is removed.
+        /// </summary>
+        private void UpdateNumericColumn(int keys, double? lv)
+        {
+            var show = keys == 4 || keys == 6;
+            if (MsdLabel != null)
+            {
+                MsdLabel.Text = keys == 6 ? "LV" : "MSD";
+                MsdLabel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (MsdText != null)
+                MsdText.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (MsdColumn != null)
+                MsdColumn.Width = show ? new GridLength(0.85, GridUnitType.Star) : new GridLength(0);
+
+            if (keys == 6 && lv.HasValue && MsdText != null)
+                MsdText.Text = lv.Value.ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        private void RenderInfo()
+        {
+            if (InfoText == null) return;
+            var suffix = string.IsNullOrEmpty(_pattern)
+                ? ""
+                : " · 键型 " + _pattern + (string.IsNullOrEmpty(_modeTag) ? "" : " " + _modeTag);
+            InfoText.Text = _infoBase + suffix;
+        }
+
+        private void UpdatePattern(string pattern, string modeTag)
+        {
+            _pattern = pattern;
+            _modeTag = modeTag;
+            RenderInfo();
+            if (PatternText != null)
+            {
+                PatternText.Text = string.IsNullOrEmpty(pattern) ? "—" : pattern;
+                PatternText.ToolTip = string.IsNullOrEmpty(pattern) ? null : pattern;
+            }
+        }
+
         private void UpdateBanner(OsuFile map, string path)
         {
             TitleText.Text = string.IsNullOrEmpty(map.Title) ? Path.GetFileNameWithoutExtension(path) : map.Title;
@@ -304,11 +360,12 @@ namespace OsuMapTools
 
             var od = map.Number("OverallDifficulty");
             var hp = map.Number("HPDrainRate");
-            InfoText.Text = map.KeyCount + "K · " + map.Objects.Count + " notes · LN " +
+            _infoBase = map.KeyCount + "K · " + map.Objects.Count + " notes · LN " +
                             (map.LnRatio * 100).ToString("0") + "% · " + FormatDuration(map.DurationMs) +
                             " · BPM " + GetBaseBpm().ToString("0.#") +
                             (od.HasValue ? " · OD " + od.Value.ToString("0.#") : "") +
                             (hp.HasValue ? " · HP " + hp.Value.ToString("0.#") : "");
+            RenderInfo();
 
             try
             {
@@ -412,6 +469,9 @@ namespace OsuMapTools
             var visible = ModeBox.SelectedIndex == (int)NoteMode.Invert;
             StrengthBox.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             StrengthLabel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+            if (CustomGapPanel != null)
+                CustomGapPanel.Visibility = visible && StrengthBox.SelectedIndex == 4
+                    ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void SchedulePreview()
@@ -473,7 +533,36 @@ namespace OsuMapTools
             if (StrengthBox.SelectedIndex == 0) return 2;
             if (StrengthBox.SelectedIndex == 2) return 8;
             if (StrengthBox.SelectedIndex == 3) return 0; // seamless
+            if (StrengthBox.SelectedIndex == 4) return GetCustomGap();
             return 4;
+        }
+
+        private int GetCustomGap()
+        {
+            int value;
+            if (CustomGapBox == null || !int.TryParse(CustomGapBox.Text.Trim(), out value)) return 3;
+            return Math.Min(16, Math.Max(1, value));
+        }
+
+        private void CustomGap_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (CustomGapBox == null) return;
+            CustomGapBox.Text = GetCustomGap().ToString(CultureInfo.InvariantCulture);
+        }
+
+        public void SetFollow(bool follow)
+        {
+            if (FollowCheck != null) FollowCheck.IsChecked = follow;
+        }
+
+        public void SetCustomGap(int gap)
+        {
+            gap = Math.Min(16, Math.Max(1, gap));
+            if (StrengthBox != null) StrengthBox.SelectedIndex = 4;
+            if (CustomGapBox != null) CustomGapBox.Text = gap.ToString(CultureInfo.InvariantCulture);
+            UpdateStrengthVisibility();
+            UpdateGenerateState();
+            SchedulePreview();
         }
 
         private string GetStrengthVariant()
@@ -482,6 +571,7 @@ namespace OsuMapTools
             if (StrengthBox.SelectedIndex == 0) return "loose";
             if (StrengthBox.SelectedIndex == 2) return "dense";
             if (StrengthBox.SelectedIndex == 3) return "seamless";
+            if (StrengthBox.SelectedIndex == 4) return "1-" + GetCustomGap().ToString(CultureInfo.InvariantCulture);
             return "";
         }
 
@@ -548,6 +638,7 @@ namespace OsuMapTools
 
             try
             {
+                UpdateNumericColumn(_sourceMap == null ? 0 : _sourceMap.KeyCount, null);
                 StarText.Text = "…";
                 DanText.Text = "…";
                 LnText.Text = "";
@@ -565,6 +656,8 @@ namespace OsuMapTools
 
                 if (!result.Ok)
                 {
+                    UpdateNumericColumn(result.Keys, result.Lv);
+                    UpdatePattern(result.Pattern, result.ModeTag);
                     StarText.Text = "—";
                     DanText.Text = "无法分析";
                     LnText.Visibility = Visibility.Collapsed;
@@ -577,6 +670,8 @@ namespace OsuMapTools
                     ? _tosuStars
                     : (result.OsuStar > 0 ? result.OsuStar : result.Star);
                 var starFormat = (_tosuStars > 0 || result.OsuStar > 0) ? "0.00" : "0.0";
+                UpdatePattern(result.Pattern, result.ModeTag);
+                UpdateNumericColumn(result.Keys, result.Lv);
                 StarText.Text = starValue.ToString(starFormat, CultureInfo.InvariantCulture) + "星";
                 DanText.Text = FormatDan(result.RcDifficulty, result.DanLabel);
 
@@ -584,7 +679,8 @@ namespace OsuMapTools
                 LnText.Text = hasLn ? FormatDan(result.LnDifficulty, null) : "";
                 LnText.Visibility = hasLn ? Visibility.Visible : Visibility.Collapsed;
 
-                MsdText.Text = result.Overall.ToString("0.00", CultureInfo.InvariantCulture);
+                if (result.Keys == 4)
+                    MsdText.Text = result.Overall.ToString("0.00", CultureInfo.InvariantCulture);
             }
             catch (Exception ex)
             {

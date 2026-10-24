@@ -84,6 +84,12 @@ namespace OsuMapTools
                 var bpm = ParseDouble(e.Args, "--bpm");
                 if (bpm.HasValue) window.SetBpmMode(bpm.Value);
 
+                var gap = ParseGap(e.Args);
+                if (gap.HasValue) window.SetCustomGap(gap.Value);
+
+                if (e.Args.Any(a => a.Equals("--no-follow", StringComparison.OrdinalIgnoreCase)))
+                    window.SetFollow(false);
+
                 if (e.Args.Any(a => a.Equals("--no-pitch", StringComparison.OrdinalIgnoreCase)))
                     window.SetKeepPitch(false);
             }
@@ -131,6 +137,15 @@ namespace OsuMapTools
             int i = Array.FindIndex(args, a => a.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (i < 0 || i + 1 >= args.Length) return null;
             return args[i + 1];
+        }
+
+        private static int? ParseGap(string[] args)
+        {
+            int i = Array.FindIndex(args, a => a.Equals("--gap", StringComparison.OrdinalIgnoreCase));
+            if (i < 0 || i + 1 >= args.Length) return null;
+            int value;
+            if (!int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out value)) return null;
+            return Math.Min(16, Math.Max(1, value));
         }
 
         private static int? ParseStrength(string[] args)

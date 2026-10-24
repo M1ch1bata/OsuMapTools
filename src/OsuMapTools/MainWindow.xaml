@@ -42,7 +42,7 @@
                                    FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="290" />
                     </Border>
                     <TextBlock x:Name="InfoText" Text="拖入 .osu 或点击选择" FontSize="10"
-                               Foreground="{StaticResource Muted}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0" />
+                               Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
@@ -149,10 +149,20 @@
                 <ComboBox Grid.Column="3" x:Name="StrengthBox" Margin="5,0,0,0" SelectedIndex="1"
                           SelectionChanged="Setting_Changed" Visibility="Collapsed">
                     <ComboBoxItem Content="松散（1/2 拍）" />
-                    <ComboBoxItem Content="标准（1/4 拍 · NOODLES）" />
+                    <ComboBoxItem Content="标准（1/4 拍）" />
                     <ComboBoxItem Content="密集（1/8 拍）" />
                     <ComboBoxItem Content="无缝（0 缝）" />
+                    <ComboBoxItem Content="自定义…" />
                 </ComboBox>
+
+                <StackPanel Grid.Column="4" x:Name="CustomGapPanel" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="10,0,0,0" Visibility="Collapsed">
+                    <TextBlock Text="1 /" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                    <TextBox x:Name="CustomGapBox" Width="44" Margin="4,0" Text="3" TextAlignment="Center"
+                             VerticalContentAlignment="Center" PreviewTextInput="Number_PreviewTextInput"
+                             LostFocus="CustomGap_LostFocus" TextChanged="Setting_Changed" />
+                    <TextBlock Text="拍" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -180,8 +190,9 @@
             <Grid VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="1.6*" />
-                    <ColumnDefinition Width="0.9*" />
+                    <ColumnDefinition Width="1.4*" />
+                    <ColumnDefinition x:Name="MsdColumn" Width="0.85*" />
+                    <ColumnDefinition Width="1.55*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -195,15 +206,20 @@
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="段位" Foreground="{StaticResource Muted}" FontSize="10" />
                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,1,0,0" VerticalAlignment="Center">
                     <TextBlock x:Name="DanText" Text="—" Foreground="{StaticResource Fg}"
-                               FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
-                               MinHeight="26" VerticalAlignment="Center" />
+                               FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"
+                               MinHeight="24" VerticalAlignment="Center" />
                     <TextBlock x:Name="LnText" Text="" Foreground="{StaticResource Accent}"
                                FontSize="11" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
                 </StackPanel>
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="MSD" Foreground="{StaticResource Muted}" FontSize="10" />
+                <TextBlock Grid.Row="0" Grid.Column="2" x:Name="MsdLabel" Text="MSD" Foreground="{StaticResource Muted}" FontSize="10" />
                 <TextBlock Grid.Row="1" Grid.Column="2" x:Name="MsdText" Text="—" Foreground="{StaticResource Accent}"
                            FontSize="20" FontWeight="SemiBold" Margin="0,1,0,0" MinHeight="26" VerticalAlignment="Center" />
+
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="键型" Foreground="{StaticResource Muted}" FontSize="10" />
+                <TextBlock Grid.Row="1" Grid.Column="3" x:Name="PatternText" Text="—"
+                           Foreground="{StaticResource Accent}" FontSize="16" FontWeight="SemiBold"
+                           TextWrapping="Wrap" MinHeight="24" VerticalAlignment="Center" Margin="0,1,0,0" />
             </Grid>
         </Border>
 

@@ -24,6 +24,9 @@ namespace OsuMapTools
         public double? DanNumber;
         public double Star;
         public double OsuStar;
+        public string Pattern;
+        public string ModeTag;
+        public double? Lv;
 
         public float Overall { get { return Msd.Length > 0 ? Msd[0] : 0f; } }
     }
@@ -172,10 +175,18 @@ namespace OsuMapTools
             try
             {
                 var err = Regex.Match(json, "\"ok\"\\s*:\\s*(true|false)");
+                var patternMatch = Regex.Match(json, "\"pattern\"\\s*:\\s*\"([^\"]*)\"");
+                var modeTagMatch = Regex.Match(json, "\"modeTag\"\\s*:\\s*\"([^\"]*)\"");
                 if (err.Success && err.Groups[1].Value == "false")
                 {
                     var em = Regex.Match(json, "\"error\"\\s*:\\s*\"([^\"]*)\"");
-                    return new AnalysisResult { Ok = false, Error = em.Success ? em.Groups[1].Value : "分析失败" };
+                    return new AnalysisResult
+                    {
+                        Ok = false,
+                        Error = em.Success ? em.Groups[1].Value : "分析失败",
+                        Pattern = patternMatch.Success ? patternMatch.Groups[1].Value : null,
+                        ModeTag = modeTagMatch.Success ? modeTagMatch.Groups[1].Value : null,
+                    };
                 }
 
                 var keys = Regex.Match(json, "\"keys\"\\s*:\\s*(\\d+)");
@@ -209,6 +220,12 @@ namespace OsuMapTools
                 var osuStar = Regex.Match(json, "\"osuStar\"\\s*:\\s*(null|-?[0-9.eE+]+)");
                 if (osuStar.Success && osuStar.Groups[1].Value != "null")
                     r.OsuStar = double.Parse(osuStar.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+
+                if (patternMatch.Success) r.Pattern = patternMatch.Groups[1].Value;
+                if (modeTagMatch.Success) r.ModeTag = modeTagMatch.Groups[1].Value;
+                var lv = Regex.Match(json, "\"lv\"\\s*:\\s*(null|-?[0-9.eE+]+)");
+                if (lv.Success && lv.Groups[1].Value != "null")
+                    r.Lv = double.Parse(lv.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
 
                 var star = Regex.Match(json, "\"star\"\\s*:\\-?([0-9.eE+]+)");
                 if (star.Success)

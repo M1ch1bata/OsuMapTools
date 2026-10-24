@@ -17,7 +17,7 @@
 ### 谱面修改
 
 - 修改 **OD / HP**（未改动时不写入）
-- **FULL LN**：把所有音符变成 LN，尾部留 1/f 拍缝隙（松散 1/2、标准 1/4、密集 1/8）；间隔不足 1/f 拍或每列最后一件保持单点。标准（1/4）与 NOODLES 谱面的规则一致；**无缝（seamless）** 让 LN 尾与下一件头完全重合（0 ms），供特殊需求使用
+- **FULL LN**：把所有音符变成 LN，尾部留 1/f 拍缝隙（松散 1/2、标准 1/4、密集 1/8，或自定义 1–16）；间隔不足 1/f 拍或每列最后一件保持单点。标准（1/4）与 NOODLES 谱面的规则一致；**无缝（seamless）** 让 LN 尾与下一件头完全重合（0 ms），供特殊需求使用
 - **RICE**：把 LN 变成单点（Lazer `ManiaModHoldOff`）
 - **Release**：保持 LN 头不变，按 `min(d/2, 拍长/f)` 随机生成尾判（f = 2/3/4/5/6/8）
 - 自动清理视频、故事板与 break（输出更干净）
@@ -28,7 +28,9 @@
 |---|---|
 | 星数 | osu! 官方 SR（rosu-pp） |
 | 段位 | Azusa（与 ManiaMapAnalyser 插件一致） |
-| MSD | Etterna MinaCalc |
+| MSD | Etterna MinaCalc（仅 4K）|
+| LV | 6K 定数（`Sunny星 × 200/81 + 7/6`）|
+| 键型 | ManiaMapAnalyser pattern 引擎（如 `Jacky WC Tech`，附 `RC/LN/HB/Mix`）|
 
 ### 识别当前谱面
 
@@ -81,9 +83,13 @@ OsuMapTools.exe "map.osu" --od 8 --hp 7 --out "D:\out" --no-pitch --generate
 | `--od <v>` / `--hp <v>` | 覆盖 OD / HP |
 | `--mode keep\|invert\|holdoff\|release` | 音符处理 |
 | `--strength loose\|std\|dense\|seamless` | FULL LN 缝隙 |
+| `--gap <1-16>` | 自定义 FULL LN 缝隙（1/N 拍） |
+| `--no-follow` | 不自动跟随 osu! 当前谱面 |
 | `--out <dir>` | 外部输出根目录 |
 | `--no-pitch` | 关闭保持音高（变调） |
 | `--generate` | 生成后退出 |
+
+> 4K 显示 MSD；6K 显示 LV；其他键数没有公认数值指标，该列会隐藏。
 
 退出码：`0` 成功，`1` 生成失败/无改动，`2` 谱面不存在。
 

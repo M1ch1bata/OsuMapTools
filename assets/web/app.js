@@ -1,10 +1,12 @@
 import { analyzeEtternaFromText } from './js/ett/calc.js';
 import { runDanielEstimatorFromText } from './js/estimator/danielEstimator.js';
 import { runAzusaEstimatorFromText } from './js/estimator/azusaEstimator.js';
+import { runSunnyEstimatorFromText } from './js/estimator/sunnyEstimator.js';
 import { OsuFileParser } from './js/parser/osuFileParser.js';
 import { estDiff } from './js/estimator/reworkEstimatorUtils.js';
 import { initRosu } from './js/rosu/rosu.js';
 import { ROSU_WASM_B64 } from './js/rosu/rosu_wasm.js';
+import { analyzePatternFromText } from './js/patterns/service.js';
 
 let rosuPromise = null;
 function getRosu() {
@@ -40,9 +42,30 @@ async function analyze(text, rate, id) {
     if (id !== latestId || cancelled.has(id)) return null;
 
     stage('dan');
-    const dan = runAzusaEstimatorFromText(text, { speedRate: rate });
+    let dan = runAzusaEstimatorFromText(text, { speedRate: rate });
+    let lv = null;
     if (!dan || !isFinite(dan.star) || /^Invalid/i.test(dan.estDiff || '')) {
-        throw new Error(dan && dan.estDiff ? dan.estDiff : 'Azusa 无法计算该谱面（仅支持 4K）');
+        // 6K: the plugin (and the community "xxy" level) is derived from the Sunny star rating:
+        //     LV = sunnyStar * 200 / 81 + 7 / 6
+        if (parsed.columnCount !== 4) {
+            // Non-4K maps use the Sunny star rating for the dan label; 6K additionally gets the
+            // community "xxy" level (LV). Other key counts intentionally have no numeric metric.
+            const sunny = runSunnyEstimatorFromText(text, { speedRate: rate });
+            if (sunny && isFinite(sunny.star)) {
+                dan = {
+                    star: sunny.star,
+                    estDiff: estDiff(sunny.star, parsed.lnRatio, parsed.columnCount),
+                    numericDifficulty: null,
+                };
+                if (parsed.columnCount === 6) {
+                    lv = Math.round((sunny.star * 200 / 81 + 7 / 6) * 100) / 100;
+                }
+            } else {
+                throw new Error('Sunny 无法计算该谱面');
+            }
+        } else {
+            throw new Error(dan && dan.estDiff ? dan.estDiff : 'Azusa 无法计算该谱面（仅支持 4K）');
+        }
     }
 
     stage('osu');
@@ -70,6 +93,7 @@ async function analyze(text, rate, id) {
             return sep >= 0 ? dan.estDiff + combined.substring(sep) : dan.estDiff;
         })(),
         osuStar: osuStar,
+        lv: lv,
     };
 }
 
@@ -84,13 +108,26 @@ chrome.webview.addEventListener('message', async (ev) => {
     if (msg.type !== 'analyze') return;
 
     latestId = msg.id;
+
+    // Pattern classification is independent from difficulty estimation, so it is computed first
+    // and still reported when the star/dan pipeline fails (e.g. 6K maps).
+    let pattern = null;
+    let modeTag = null;
+    try {
+        const { report } = analyzePatternFromText(msg.text, 1.0);
+        pattern = report.Category;
+        modeTag = report.ModeTag;
+    } catch (e) { }
+
     try {
         const result = await analyze(msg.text, typeof msg.rate === 'number' ? msg.rate : 1, msg.id);
         if (result === null || msg.id !== latestId || cancelled.has(msg.id)) return;
+        result.pattern = pattern;
+        result.modeTag = modeTag;
         chrome.webview.postMessage({ type: 'result', id: msg.id, ok: true, result });
     } catch (err) {
         if (msg.id !== latestId || cancelled.has(msg.id)) return;
-        chrome.webview.postMessage({ type: 'result', id: msg.id, ok: false, error: String(err && err.message || err) });
+        chrome.webview.postMessage({ type: 'result', id: msg.id, ok: false, error: String(err && err.message || err), pattern, modeTag });
     }
 });
 
