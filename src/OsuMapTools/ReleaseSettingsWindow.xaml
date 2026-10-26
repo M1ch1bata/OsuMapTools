@@ -26,13 +26,13 @@
                    VerticalAlignment="Center" Margin="0,0,10,8" />
         <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="StyleBox" Margin="0,0,0,8"
                   SelectionChanged="Style_Changed">
-            <ComboBoxItem Content="loose（a=2）" />
-            <ComboBoxItem Content="standard（a=5）" />
-            <ComboBoxItem Content="dense（a=8）" />
+            <ComboBoxItem Content="loose（长短比 2）" />
+            <ComboBoxItem Content="standard（长短比 5）" />
+            <ComboBoxItem Content="dense（长短比 8）" />
             <ComboBoxItem Content="自定义" />
         </ComboBox>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="a（长面比例）" Foreground="{StaticResource Muted}"
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="长短比" Foreground="{StaticResource Muted}"
                    VerticalAlignment="Center" Margin="0,0,10,8" />
         <TextBox Grid.Row="1" Grid.Column="1" x:Name="ABox" Text="5" TextAlignment="Center"
                  VerticalContentAlignment="Center" Margin="0,0,4,8"
@@ -42,7 +42,7 @@
             <Button Content="▼" FontSize="7" Width="22" Height="14" Padding="0" Tag="a:-1" Click="Spin_Click" />
         </StackPanel>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="b（对齐难度）" Foreground="{StaticResource Muted}"
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="尾判难度" Foreground="{StaticResource Muted}"
                    VerticalAlignment="Center" Margin="0,0,10,8" />
         <TextBox Grid.Row="2" Grid.Column="1" x:Name="BBox" Text="0" TextAlignment="Center"
                  VerticalContentAlignment="Center" Margin="0,0,4,8"
@@ -52,7 +52,7 @@
             <Button Content="▼" FontSize="7" Width="22" Height="14" Padding="0" Tag="b:-1" Click="Spin_Click" />
         </StackPanel>
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="c（长度/缝隙）" Foreground="{StaticResource Muted}"
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="宽松度" Foreground="{StaticResource Muted}"
                    VerticalAlignment="Center" Margin="0,0,10,8" />
         <TextBox Grid.Row="3" Grid.Column="1" x:Name="CBox" Text="5" TextAlignment="Center"
                  VerticalContentAlignment="Center" Margin="0,0,4,8"
@@ -64,7 +64,7 @@
 
         <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" TextWrapping="Wrap"
                    Foreground="{StaticResource Muted}" FontSize="10" Margin="0,0,0,8"
-                   Text="a：长面概率 = a/10；b：0 对齐相邻面头/面尾，10 最参差；c：短面最小长度 / 长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。所有长度按拍长计算，不按小节。" />
+                   Text="长短比：数值/10 是长面概率（0 全短，10 全长）；尾判难度：0 对齐相邻面头/面尾，10 最参差；宽松度：同时控制短面最小长度与长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。所有长度按拍长计算，不按小节。" />
 
         <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal"
                     HorizontalAlignment="Right">

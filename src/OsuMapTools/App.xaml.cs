@@ -125,9 +125,12 @@ namespace OsuMapTools
                 if (shortLen.HasValue || shortGap.HasValue)
                     window.SetShortLnOptions(shortLen ?? 4, shortGap ?? 4);
 
-                var releaseA = ParseIntOption(e.Args, "--release-a", 0, 10);
-                var releaseB = ParseIntOption(e.Args, "--release-b", 0, 10);
-                var releaseC = ParseIntOption(e.Args, "--release-c", 0, 10);
+                var releaseA = ParseIntOption(e.Args, "--long-ratio", 0, 10)
+                    ?? ParseIntOption(e.Args, "--release-a", 0, 10);
+                var releaseB = ParseIntOption(e.Args, "--tail-difficulty", 0, 10)
+                    ?? ParseIntOption(e.Args, "--release-b", 0, 10);
+                var releaseC = ParseIntOption(e.Args, "--leniency", 0, 10)
+                    ?? ParseIntOption(e.Args, "--release-c", 0, 10);
                 var releaseStyle = ParseString(e.Args, "--release-style");
                 if (!string.IsNullOrEmpty(releaseStyle))
                 {
@@ -161,7 +164,7 @@ namespace OsuMapTools
         private static bool ValidateCli(string[] args, out string error)
         {
             error = null;
-            string[] valueOptions = { "--rate", "--bpm", "--od", "--hp", "--mode", "--strength", "--gap", "--release-gap", "--out", "--short-length", "--short-gap", "--release-a", "--release-b", "--release-c", "--release-style" };
+            string[] valueOptions = { "--rate", "--bpm", "--od", "--hp", "--mode", "--strength", "--gap", "--release-gap", "--out", "--short-length", "--short-gap", "--long-ratio", "--tail-difficulty", "--leniency", "--release-a", "--release-b", "--release-c", "--release-style" };
             foreach (var opt in valueOptions)
             {
                 int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
@@ -225,7 +228,7 @@ namespace OsuMapTools
                 }
             }
 
-            foreach (var opt in new[] { "--release-gap", "--release-a", "--release-b", "--release-c" })
+            foreach (var opt in new[] { "--release-gap", "--long-ratio", "--tail-difficulty", "--leniency", "--release-a", "--release-b", "--release-c" })
             {
                 int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
                 if (i < 0) continue;

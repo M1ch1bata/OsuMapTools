@@ -21,7 +21,7 @@
 - **FULL LN**：把所有音符变成 LN，尾部留 1/f 拍缝隙（松散 1/2、标准 1/4、密集 1/8，或自定义 1–16）；间隔不足 1/f 拍或每列最后一件保持单点。标准（1/4）与 NOODLES 谱面的规则一致；**无缝（seamless）** 让 LN 尾与下一件头完全重合（0 ms），供特殊需求使用
 - **RICE**：把 LN 变成单点（Lazer `ManiaModHoldOff`）
 - **SHORT LN（短面条）**：只把普通音符变成固定长度的短面（默认 1/4 拍，可设 1–16），并保证面尾到下一件的缝隙不小于“最小缝”；原谱已有 LN 保持原样，每列最后一个普通音符也会生成短面
-- **Release**：保留原谱 LN，只随机处理普通音符。`a`（0–10）控制长面比例（loose=2、standard=5、dense=8）；`b`（0–10）控制面尾对齐难度（0 对齐相邻面头/面尾，10 最参差）；`c`（0–10）同时约束短面最小长度与长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。短面的缝隙不小于长面最大缝隙，放不下时退化为单点；所有长度均按拍长计算，不按小节
+- **Release**：保留原谱 LN，只随机处理普通音符。`长短比`（0–10）是长面概率的十分比（loose=2、standard=5、dense=8，0 全短、10 全长）；`尾判难度`（0–10）控制面尾对齐程度（0 对齐相邻面头/面尾，10 最参差）；`宽松度`（0–10）同时约束短面最小长度与长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。短面的缝隙不小于长面最大缝隙，放不下时退化为单点；所有长度均按拍长计算，不按小节
 - 自动清理视频、故事板与 break（输出更干净）
 
 ### 批量倍速
@@ -95,9 +95,10 @@ OsuMapTools.exe "map.osu" --od 8 --hp 7 --out "D:\out" --no-pitch --generate
 | `--gap <1-16>` | 自定义 FULL LN 缝隙（1/N 拍） |
 | `--short-length <1-16>` | SHORT LN 面条长度（1/N 拍，默认 4） |
 | `--short-gap <1-16>` | SHORT LN 最小缝（1/N 拍，默认 4） |
-| `--release-a <0-10>` | Release 长面比例（loose=2、standard=5、dense=8） |
-| `--release-b <0-10>` | Release 面尾对齐难度（默认 0） |
-| `--release-c <0-10>` | Release 短面最小长度/长面最大缝隙（默认 5） |
+| `--long-ratio <0-10>` | Release 长短比（loose=2、standard=5、dense=8） |
+| `--tail-difficulty <0-10>` | Release 尾判难度（默认 0） |
+| `--leniency <0-10>` | Release 宽松度（默认 5） |
+| `--release-a/b/c` | 兼容旧别名 |
 | `--release-style loose\|std\|dense` | Release 预设（等价于设置 a） |
 | `--release-gap <0-10>` | 旧参数，等价于 `--release-c` |
 | `--no-follow` | 不自动跟随 osu! 当前谱面 |
