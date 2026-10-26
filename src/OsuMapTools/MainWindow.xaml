@@ -144,6 +144,7 @@
                     <ComboBoxItem Content="FULL LN（反键）" />
                     <ComboBoxItem Content="RICE（面转米）" />
                     <ComboBoxItem Content="Release（随机面尾）" />
+                    <ComboBoxItem Content="SHORT LN（短面条）" />
                 </ComboBox>
 
                 <TextBlock Grid.Column="2" x:Name="StrengthLabel" Text="缝隙" Foreground="{StaticResource Muted}"
@@ -166,12 +167,20 @@
                     <TextBlock Text="拍" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="4" x:Name="ReleaseGapPanel" Orientation="Horizontal"
-                            VerticalAlignment="Center" Margin="6,0,0,0" Visibility="Collapsed">
-                    <TextBlock Text="最小缝 1/" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
-                    <TextBox x:Name="ReleaseGapBox" Width="40" Margin="4,0" Text="4" TextAlignment="Center"
+                <Button Grid.Column="4" x:Name="ReleaseSettingsButton" Content="Release 设置…"
+                        Padding="8,3" Margin="8,0,0,0" VerticalAlignment="Center"
+                        Visibility="Collapsed" Click="ReleaseSettings_Click" />
+
+                <StackPanel Grid.Column="4" x:Name="ShortLnPanel" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="8,0,0,0" Visibility="Collapsed">
+                    <TextBlock Text="面长 1/" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                    <TextBox x:Name="ShortLenBox" Width="34" Margin="3,0" Text="4" TextAlignment="Center"
                              VerticalContentAlignment="Center" PreviewTextInput="Number_PreviewTextInput"
-                             LostFocus="ReleaseGap_LostFocus" TextChanged="Setting_Changed" />
+                             LostFocus="ShortBox_LostFocus" TextChanged="Setting_Changed" />
+                    <TextBlock Text="拍  最小缝 1/" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+                    <TextBox x:Name="ShortGapBox" Width="34" Margin="3,0" Text="4" TextAlignment="Center"
+                             VerticalContentAlignment="Center" PreviewTextInput="Number_PreviewTextInput"
+                             LostFocus="ShortBox_LostFocus" TextChanged="Setting_Changed" />
                     <TextBlock Text="拍" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
                 </StackPanel>
             </Grid>
@@ -239,13 +248,16 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Background="{StaticResource Card}" BorderBrush="{StaticResource Line}"
                     BorderThickness="1" CornerRadius="8" Padding="10,7" Margin="0,0,8,0">
                 <TextBlock x:Name="OutputPathText" AutomationProperties.AutomationId="OutputPathText" Text="—" Foreground="{StaticResource Fg}" FontSize="11"
                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxHeight="18" />
             </Border>
-            <Button Grid.Column="1" x:Name="GenerateButton" AutomationProperties.AutomationId="GenerateButton" Content="生成" Click="Generate_Click"
+            <Button Grid.Column="1" x:Name="BatchButton" AutomationProperties.AutomationId="BatchButton" Content="批量…" Click="Batch_Click"
+                    Padding="10,6" Margin="0,0,8,0" IsEnabled="False" />
+            <Button Grid.Column="2" x:Name="GenerateButton" AutomationProperties.AutomationId="GenerateButton" Content="生成" Click="Generate_Click"
                     Padding="22,6" IsEnabled="False" FontWeight="SemiBold" IsDefault="True" />
         </Grid>
     </Grid>

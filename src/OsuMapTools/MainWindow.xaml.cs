@@ -48,6 +48,12 @@ namespace OsuMapTools
 
         private string _memStatus = "";
         private bool _isGenerating;
+        private double? _rateOverride;
+        private string _speedTagOverride;
+        private bool _batchRunning;
+        private int _releaseA = 5;
+        private int _releaseB = 0;
+        private int _releaseC = 5;
         private string _infoBase = "";
         private string _pattern;
         private string _modeTag;
@@ -447,12 +453,17 @@ namespace OsuMapTools
         }
 
         /// <summary>True when at least one transformation (mode / speed / OD / HP / output location) was requested.</summary>
+        private double GetRateForBuild()
+        {
+            return _rateOverride ?? GetRate();
+        }
+
         private bool HasChanges()
         {
             if (_sourceMap == null) return false;
 
             if (GetMode() != NoteMode.Keep) return true;
-            if (Math.Abs(GetRate() - 1.0) > 1e-9) return true;
+            if (Math.Abs(GetRateForBuild() - 1.0) > 1e-9) return true;
 
             var baseOd = _sourceMap.Number("OverallDifficulty");
             var baseHp = _sourceMap.Number("HPDrainRate");
@@ -468,7 +479,8 @@ namespace OsuMapTools
         private void UpdateGenerateState()
         {
             if (GenerateButton == null) return;
-            GenerateButton.IsEnabled = !_isGenerating && _isMania && _sourceMap != null && HasChanges();
+            GenerateButton.IsEnabled = !_isGenerating && !_batchRunning && _isMania && _sourceMap != null && HasChanges();
+            if (BatchButton != null) BatchButton.IsEnabled = !_isGenerating && !_batchRunning && _isMania && _sourceMap != null;
         }
 
         private void UpdateEffectiveRate()
@@ -499,8 +511,11 @@ namespace OsuMapTools
             if (CustomGapPanel != null)
                 CustomGapPanel.Visibility = visible && StrengthBox.SelectedIndex == 4
                     ? Visibility.Visible : Visibility.Collapsed;
-            if (ReleaseGapPanel != null)
-                ReleaseGapPanel.Visibility = ModeBox.SelectedIndex == (int)NoteMode.Release
+            if (ReleaseSettingsButton != null)
+                ReleaseSettingsButton.Visibility = ModeBox.SelectedIndex == (int)NoteMode.Release
+                    ? Visibility.Visible : Visibility.Collapsed;
+            if (ShortLnPanel != null)
+                ShortLnPanel.Visibility = ModeBox.SelectedIndex == (int)NoteMode.ShortLn
                     ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -529,9 +544,9 @@ namespace OsuMapTools
             return Math.Min(5.0, Math.Max(0.01, v));
         }
 
-        private string GetSpeedTag()
+        private string GetSpeedTag(double? rateOverride = null)
         {
-            var rate = GetRate();
+            var rate = rateOverride ?? GetRateForBuild();
             if (Math.Abs(rate - 1.0) < 1e-9) return "";
             if (BpmCheck.IsChecked == true)
                 return (GetBaseBpm() * rate).ToString("0.#", CultureInfo.InvariantCulture) + "bpm";
@@ -567,24 +582,69 @@ namespace OsuMapTools
             return 4;
         }
 
-        private int GetReleaseMinDivision()
+        public int GetReleaseA() { return Math.Min(10, Math.Max(0, _releaseA)); }
+        public int GetReleaseB() { return Math.Min(10, Math.Max(0, _releaseB)); }
+        public int GetReleaseC() { return Math.Min(10, Math.Max(0, _releaseC)); }
+
+        public void SetReleaseOptions(int a, int b, int c)
+        {
+            _releaseA = Math.Min(10, Math.Max(0, a));
+            _releaseB = Math.Min(10, Math.Max(0, b));
+            _releaseC = Math.Min(10, Math.Max(0, c));
+            if (ModeBox != null) ModeBox.SelectedIndex = (int)NoteMode.Release;
+            UpdateStrengthVisibility();
+            UpdateGenerateState();
+            SchedulePreview();
+        }
+
+        private void ReleaseSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new ReleaseSettingsWindow(_releaseA, _releaseB, _releaseC) { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                _releaseA = dlg.A;
+                _releaseB = dlg.B;
+                _releaseC = dlg.C;
+                UpdateGenerateState();
+                SchedulePreview();
+            }
+        }
+
+        private int GetShortLengthDivision()
         {
             int value;
-            if (ReleaseGapBox == null || !int.TryParse(ReleaseGapBox.Text.Trim(), out value)) return 4;
+            if (ShortLenBox == null || !int.TryParse(ShortLenBox.Text.Trim(), out value)) return 4;
             return Math.Min(16, Math.Max(1, value));
         }
 
-        private void ReleaseGap_LostFocus(object sender, RoutedEventArgs e)
+        private int GetShortGapDivision()
         {
-            if (ReleaseGapBox == null) return;
-            ReleaseGapBox.Text = GetReleaseMinDivision().ToString(CultureInfo.InvariantCulture);
+            int value;
+            if (ShortGapBox == null || !int.TryParse(ShortGapBox.Text.Trim(), out value)) return 4;
+            return Math.Min(16, Math.Max(1, value));
         }
 
+        public void SetShortLnOptions(int lengthDivision, int gapDivision)
+        {
+            if (ModeBox != null) ModeBox.SelectedIndex = (int)NoteMode.ShortLn;
+            if (ShortLenBox != null) ShortLenBox.Text = Math.Min(16, Math.Max(1, lengthDivision)).ToString(CultureInfo.InvariantCulture);
+            if (ShortGapBox != null) ShortGapBox.Text = Math.Min(16, Math.Max(1, gapDivision)).ToString(CultureInfo.InvariantCulture);
+            UpdateStrengthVisibility();
+            UpdateGenerateState();
+            SchedulePreview();
+        }
+
+        private void ShortBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (ShortLenBox != null) ShortLenBox.Text = GetShortLengthDivision().ToString(CultureInfo.InvariantCulture);
+            if (ShortGapBox != null) ShortGapBox.Text = GetShortGapDivision().ToString(CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Legacy --release-gap alias: maps to c (0..10).</summary>
         public void SetReleaseGap(int division)
         {
-            division = Math.Min(16, Math.Max(1, division));
+            _releaseC = Math.Min(10, Math.Max(0, division));
             if (ModeBox != null) ModeBox.SelectedIndex = (int)NoteMode.Release;
-            if (ReleaseGapBox != null) ReleaseGapBox.Text = division.ToString(CultureInfo.InvariantCulture);
             UpdateStrengthVisibility();
             UpdateGenerateState();
             SchedulePreview();
@@ -666,7 +726,11 @@ namespace OsuMapTools
             }
             else if (mode == NoteMode.Release)
             {
-                Transforms.ApplyRelease(map, new Random(), GetReleaseMinDivision());
+                Transforms.ApplyRelease(map, new Random(), GetReleaseA(), GetReleaseB(), GetReleaseC());
+            }
+            else if (mode == NoteMode.ShortLn)
+            {
+                Transforms.ApplyShortLn(map, GetShortLengthDivision(), GetShortGapDivision());
             }
 
             var od = GetOptional(OdBox.Text, 0, 10);
@@ -677,8 +741,8 @@ namespace OsuMapTools
             var hpChanged = hp.HasValue && (!baseHp.HasValue || Math.Abs(baseHp.Value - hp.Value) > 1e-6) ? hp : null;
             if (odChanged.HasValue || hpChanged.HasValue) Transforms.SetDifficulty(map, odChanged, hpChanged);
 
-            var rate = GetRate();
-            suffix = Naming.BuildSuffix(mode, GetStrengthVariant(), GetSpeedTag(), odChanged, hpChanged);
+            var rate = GetRateForBuild();
+            suffix = Naming.BuildSuffix(mode, GetStrengthVariant(), _speedTagOverride ?? GetSpeedTag(rate), odChanged, hpChanged);
             if (scaleTimes && Math.Abs(rate - 1.0) > 1e-9) map.ScaleTimes(rate);
 
             return map;
@@ -687,7 +751,7 @@ namespace OsuMapTools
         private async Task UpdatePreviewAsync()
         {
             if (_sourceMap == null || !_isMania) return;
-            if (_isGenerating) return;
+            if (_isGenerating || _batchRunning) return;
             int version = ++_previewVersion;
 
             try
@@ -795,9 +859,54 @@ namespace OsuMapTools
             SchedulePreview();
         }
 
+        private void Batch_Click(object sender, RoutedEventArgs e)
+        {
+            if (_sourceMap == null || _batchRunning || _isGenerating) return;
+            var dlg = new BatchWindow(this, GetBaseBpm()) { Owner = this };
+            dlg.ShowDialog();
+        }
+
         private async void Generate_Click(object sender, RoutedEventArgs e)
         {
             await GenerateAsync();
+        }
+
+        public sealed class BatchVariant
+        {
+            public double Rate;
+            public string Tag;
+        }
+
+        public async Task<List<string>> GenerateBatchAsync(IReadOnlyList<BatchVariant> variants, Action<int, string> progress)
+        {
+            var results = new List<string>();
+            if (_sourceMap == null || _isGenerating || _batchRunning || variants.Count == 0) return results;
+
+            _batchRunning = true;
+            _debounce?.Stop();
+            _previewVersion++;
+            UpdateGenerateState();
+            var oldRate = _rateOverride;
+            var oldTag = _speedTagOverride;
+            try
+            {
+                for (int i = 0; i < variants.Count; i++)
+                {
+                    _rateOverride = variants[i].Rate;
+                    _speedTagOverride = variants[i].Tag;
+                    if (progress != null) progress(i, "正在生成 " + variants[i].Tag);
+                    var ok = await GenerateAsync();
+                    results.Add(ok ? OutputPathText.Text : null);
+                }
+            }
+            finally
+            {
+                _rateOverride = oldRate;
+                _speedTagOverride = oldTag;
+                _batchRunning = false;
+                UpdateGenerateState();
+            }
+            return results;
         }
 
         private async System.Threading.Tasks.Task<bool> GenerateAsync()
@@ -825,7 +934,7 @@ namespace OsuMapTools
             {
                 string suffix;
                 var map = BuildTransformed(true, out suffix);
-                var rate = GetRate();
+                var rate = GetRateForBuild();
 
                 var originDir = Path.GetDirectoryName(Path.GetFullPath(_sourcePath));
                 bool external = !string.IsNullOrEmpty(_outputRoot);
@@ -846,7 +955,7 @@ namespace OsuMapTools
                 {
                     if (!File.Exists(srcAudio)) throw new FileNotFoundException("找不到音频文件：" + srcAudio);
 
-                    var speedTag = GetSpeedTag();
+                    var speedTag = _speedTagOverride ?? GetSpeedTag(rate);
                     var keepPitch = GetKeepPitch();
                     var pitchTag = keepPitch ? "" : " nopitch";
                     var newName = Naming.Sanitize(Path.GetFileNameWithoutExtension(audioName) + " [" + speedTag + pitchTag + "].mp3");

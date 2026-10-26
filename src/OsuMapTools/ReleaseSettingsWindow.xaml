@@ -1,0 +1,75 @@
+<Window x:Class="OsuMapTools.ReleaseSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Release 设置"
+        Width="380" Height="280"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Bg}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="风格" Foreground="{StaticResource Muted}"
+                   VerticalAlignment="Center" Margin="0,0,10,8" />
+        <ComboBox Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" x:Name="StyleBox" Margin="0,0,0,8"
+                  SelectionChanged="Style_Changed">
+            <ComboBoxItem Content="loose（a=2）" />
+            <ComboBoxItem Content="standard（a=5）" />
+            <ComboBoxItem Content="dense（a=8）" />
+            <ComboBoxItem Content="自定义" />
+        </ComboBox>
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="a（长面比例）" Foreground="{StaticResource Muted}"
+                   VerticalAlignment="Center" Margin="0,0,10,8" />
+        <TextBox Grid.Row="1" Grid.Column="1" x:Name="ABox" Text="5" TextAlignment="Center"
+                 VerticalContentAlignment="Center" Margin="0,0,4,8"
+                 PreviewTextInput="Number_PreviewTextInput" LostFocus="Box_LostFocus" />
+        <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="▲" FontSize="7" Width="22" Height="14" Padding="0" Tag="a:1" Click="Spin_Click" />
+            <Button Content="▼" FontSize="7" Width="22" Height="14" Padding="0" Tag="a:-1" Click="Spin_Click" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="b（对齐难度）" Foreground="{StaticResource Muted}"
+                   VerticalAlignment="Center" Margin="0,0,10,8" />
+        <TextBox Grid.Row="2" Grid.Column="1" x:Name="BBox" Text="0" TextAlignment="Center"
+                 VerticalContentAlignment="Center" Margin="0,0,4,8"
+                 PreviewTextInput="Number_PreviewTextInput" LostFocus="Box_LostFocus" />
+        <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="▲" FontSize="7" Width="22" Height="14" Padding="0" Tag="b:1" Click="Spin_Click" />
+            <Button Content="▼" FontSize="7" Width="22" Height="14" Padding="0" Tag="b:-1" Click="Spin_Click" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="c（长度/缝隙）" Foreground="{StaticResource Muted}"
+                   VerticalAlignment="Center" Margin="0,0,10,8" />
+        <TextBox Grid.Row="3" Grid.Column="1" x:Name="CBox" Text="5" TextAlignment="Center"
+                 VerticalContentAlignment="Center" Margin="0,0,4,8"
+                 PreviewTextInput="Number_PreviewTextInput" LostFocus="Box_LostFocus" />
+        <StackPanel Grid.Row="3" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="▲" FontSize="7" Width="22" Height="14" Padding="0" Tag="c:1" Click="Spin_Click" />
+            <Button Content="▼" FontSize="7" Width="22" Height="14" Padding="0" Tag="c:-1" Click="Spin_Click" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" TextWrapping="Wrap"
+                   Foreground="{StaticResource Muted}" FontSize="10" Margin="0,0,0,8"
+                   Text="a：长面概率 = a/10；b：0 对齐相邻面头/面尾，10 最参差；c：短面最小长度 / 长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。" />
+
+        <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Content="取消" Padding="18,5" Margin="0,0,8,0" Click="Cancel_Click" IsCancel="True" />
+            <Button Content="确定" Padding="18,5" Click="Ok_Click" IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

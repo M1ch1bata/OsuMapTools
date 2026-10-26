@@ -120,6 +120,25 @@ namespace OsuMapTools
                 var releaseGap = ParseReleaseGap(e.Args);
                 if (releaseGap.HasValue) window.SetReleaseGap(releaseGap.Value);
 
+                var shortLen = ParseIntOption(e.Args, "--short-length", 1, 16);
+                var shortGap = ParseIntOption(e.Args, "--short-gap", 1, 16);
+                if (shortLen.HasValue || shortGap.HasValue)
+                    window.SetShortLnOptions(shortLen ?? 4, shortGap ?? 4);
+
+                var releaseA = ParseIntOption(e.Args, "--release-a", 0, 10);
+                var releaseB = ParseIntOption(e.Args, "--release-b", 0, 10);
+                var releaseC = ParseIntOption(e.Args, "--release-c", 0, 10);
+                var releaseStyle = ParseString(e.Args, "--release-style");
+                if (!string.IsNullOrEmpty(releaseStyle))
+                {
+                    if (releaseStyle.Equals("loose", StringComparison.OrdinalIgnoreCase)) releaseA = 2;
+                    else if (releaseStyle.Equals("standard", StringComparison.OrdinalIgnoreCase)
+                             || releaseStyle.Equals("std", StringComparison.OrdinalIgnoreCase)) releaseA = 5;
+                    else if (releaseStyle.Equals("dense", StringComparison.OrdinalIgnoreCase)) releaseA = 8;
+                }
+                if (releaseA.HasValue || releaseB.HasValue || releaseC.HasValue || !string.IsNullOrEmpty(releaseStyle))
+                    window.SetReleaseOptions(releaseA ?? 5, releaseB ?? 0, releaseC ?? 5);
+
                 if (e.Args.Any(a => a.Equals("--no-pitch", StringComparison.OrdinalIgnoreCase)))
                     window.SetKeepPitch(false);
             }
@@ -142,7 +161,7 @@ namespace OsuMapTools
         private static bool ValidateCli(string[] args, out string error)
         {
             error = null;
-            string[] valueOptions = { "--rate", "--bpm", "--od", "--hp", "--mode", "--strength", "--gap", "--release-gap", "--out" };
+            string[] valueOptions = { "--rate", "--bpm", "--od", "--hp", "--mode", "--strength", "--gap", "--release-gap", "--out", "--short-length", "--short-gap", "--release-a", "--release-b", "--release-c", "--release-style" };
             foreach (var opt in valueOptions)
             {
                 int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
@@ -173,7 +192,7 @@ namespace OsuMapTools
                 if (i < 0) continue;
                 var v = args[i + 1];
                 var allowed = opt == "--mode"
-                    ? new[] { "keep", "invert", "holdoff", "release" }
+                    ? new[] { "keep", "invert", "holdoff", "release", "shortln", "short" }
                     : new[] { "loose", "std", "dense", "seamless" };
                 if (!allowed.Contains(v, StringComparer.OrdinalIgnoreCase))
                 {
@@ -182,7 +201,7 @@ namespace OsuMapTools
                 }
             }
 
-            foreach (var opt in new[] { "--gap", "--release-gap" })
+            foreach (var opt in new[] { "--gap" })
             {
                 int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
                 if (i < 0) continue;
@@ -190,6 +209,30 @@ namespace OsuMapTools
                 if (!int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out v) || v < 1 || v > 16)
                 {
                     error = opt + " 需要 1–16 的整数：" + args[i + 1];
+                    return false;
+                }
+            }
+
+            foreach (var opt in new[] { "--short-length", "--short-gap" })
+            {
+                int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
+                if (i < 0) continue;
+                int v;
+                if (!int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out v) || v < 1 || v > 16)
+                {
+                    error = opt + " 需要 1–16 的整数：" + args[i + 1];
+                    return false;
+                }
+            }
+
+            foreach (var opt in new[] { "--release-gap", "--release-a", "--release-b", "--release-c" })
+            {
+                int i = Array.FindIndex(args, a => a.Equals(opt, StringComparison.OrdinalIgnoreCase));
+                if (i < 0) continue;
+                int v;
+                if (!int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out v) || v < 0 || v > 10)
+                {
+                    error = opt + " 需要 0–10 的整数：" + args[i + 1];
                     return false;
                 }
             }
@@ -251,6 +294,17 @@ namespace OsuMapTools
             return Math.Min(16, Math.Max(1, value));
         }
 
+        private static int? ParseIntOption(string[] args, string key, int min, int max)
+        {
+            int i = Array.FindIndex(args, a => a.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (i < 0 || i + 1 >= args.Length) return null;
+            var token = args[i + 1];
+            if (token.StartsWith("--", StringComparison.Ordinal)) return null;
+            int value;
+            if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)) return null;
+            return Math.Min(max, Math.Max(min, value));
+        }
+
         private static int? ParseGap(string[] args)
         {
             int i = Array.FindIndex(args, a => a.Equals("--gap", StringComparison.OrdinalIgnoreCase));
@@ -281,6 +335,7 @@ namespace OsuMapTools
             if (v == "invert") return 1;
             if (v == "holdoff") return 2;
             if (v == "release") return 3;
+            if (v == "shortln" || v == "short") return 4;
             return null;
         }
 

@@ -13,6 +13,7 @@ namespace OsuMapTools
         Invert = 1,
         HoldOff = 2,
         Release = 3,
+        ShortLn = 4,
     }
 
     public static class Transforms
@@ -77,16 +78,15 @@ namespace OsuMapTools
             }
         }
 
-        /// <summary>Beat divisions used by the Release generator (gap = beat / f).</summary>
-        public static readonly int[] ReleaseDivisions = { 2, 3, 4, 5, 6, 8 };
-
         /// <summary>
-        /// Release: rebuild every column from object heads, each note becomes a hold whose release-to-next-press
-        /// gap is a random beat fraction, clamped to half the distance. The gap never goes below beat/minDivision;
-        /// objects without enough room stay taps. The last object in each column stays a note.
+        /// SHORT LN: convert every tap into an LN of a fixed length (beat / lengthDivision).
+        /// The release-to-next-head gap is kept at least beat / minGapDivision; existing LNs are
+        /// left untouched. The last tap in each column also becomes a short LN.
         /// </summary>
-        public static void ApplyRelease(OsuFile map, Random rng, int minDivision)
+        public static void ApplyShortLn(OsuFile map, int lengthDivision, int minGapDivision)
         {
+            if (lengthDivision < 1) lengthDivision = 4;
+            if (minGapDivision < 1) minGapDivision = 4;
             int keys = map.KeyCount <= 0 ? 4 : map.KeyCount;
             var result = new List<HitObject>();
 
@@ -96,23 +96,20 @@ namespace OsuMapTools
                 for (int i = 0; i < objects.Count; i++)
                 {
                     var current = objects[i];
-                    if (i == objects.Count - 1)
+                    if (current.IsHold)
                     {
-                        var tail = current.Clone();
-                        tail.MakeTap();
-                        result.Add(tail);
+                        result.Add(current);
                         continue;
                     }
 
-                    var next = objects[i + 1];
-                    double d = next.Time - current.Time;
-                    double beat = map.BeatLengthAt(next.Time);
-
-                    int division = ReleaseDivisions[rng.Next(ReleaseDivisions.Length)];
-                    double gap = Math.Min(d / 2.0, beat / division);
-                    double minGap = beat / Math.Max(1, minDivision);
-                    if (gap < minGap) gap = minGap;
-                    double duration = d - gap;
+                    double beat = map.BeatLengthAt(current.Time);
+                    double duration = beat / lengthDivision;
+                    if (i < objects.Count - 1)
+                    {
+                        double d = objects[i + 1].Time - current.Time;
+                        double room = d - beat / minGapDivision;
+                        if (room < duration) duration = room;
+                    }
 
                     int end = current.Time + (int)Math.Floor(duration + 0.5);
                     if (duration < 1.0 || end <= current.Time)
@@ -128,6 +125,162 @@ namespace OsuMapTools
 
             map.Objects = result;
             map.SortObjects();
+        }
+
+        /// <summary>
+        /// Release (0.3): a = 0..10 controls the long-note probability (a/10). Existing LNs are
+        /// preserved. Long notes choose a clearance in [0, beat*f(c)]; short notes choose a length in
+        /// [beat*f(c), d - beat*f(c)], so their clearance is never smaller than the long-note maximum.
+        /// b = 0..10 moves the tail from the next global event (b=0) to the point farthest from any
+        /// event (b=10). c = 0..10 indexes ReleaseFractions.
+        /// </summary>
+        public static void ApplyRelease(OsuFile map, Random rng, int a, int b, int c)
+        {
+            int keys = map.KeyCount <= 0 ? 4 : map.KeyCount;
+            a = Math.Min(10, Math.Max(0, a));
+            b = Math.Min(10, Math.Max(0, b));
+            c = Math.Min(10, Math.Max(0, c));
+            double longChance = a / 10.0;
+            double fraction = ReleaseFractions[c];
+
+            var events = map.Objects
+                .SelectMany(o => o.EndTime.HasValue ? new[] { o.Time, o.EndTime.Value } : new[] { o.Time })
+                .Distinct()
+                .OrderBy(t => t)
+                .ToArray();
+
+            var result = new List<HitObject>();
+            foreach (var column in map.Objects.GroupBy(o => o.Column(keys)).OrderBy(g => g.Key))
+            {
+                var objects = column.OrderBy(o => o.Time).ThenBy(o => o.SourceIndex).ToList();
+                for (int i = 0; i < objects.Count; i++)
+                {
+                    var current = objects[i];
+                    if (current.IsHold)
+                    {
+                        result.Add(current);
+                        continue;
+                    }
+                    if (i == objects.Count - 1)
+                    {
+                        current.MakeTap();
+                        result.Add(current);
+                        continue;
+                    }
+
+                    var next = objects[i + 1];
+                    double d = next.Time - current.Time;
+                    if (d < 2)
+                    {
+                        current.MakeTap();
+                        result.Add(current);
+                        continue;
+                    }
+
+                    double beat = map.BeatLengthAt(current.Time);
+                    double maxGap = beat * fraction;
+                    int end;
+
+                    if (rng.NextDouble() < longChance)
+                    {
+                        // Long: clearance from 0 to maxGap, tail stays before the next head.
+                        double tailMin = Math.Max(current.Time + 1.0, next.Time - maxGap);
+                        double tailMax = next.Time;
+                        if (tailMax <= current.Time + 1.0)
+                        {
+                            current.MakeTap();
+                            result.Add(current);
+                            continue;
+                        }
+                        end = ChooseReleaseTail(current.Time, tailMin, tailMax, b, events);
+                    }
+                    else
+                    {
+                        // Short: length must leave at least maxGap before the next head.
+                        double maxLen = d - maxGap;
+                        double minLen = beat * fraction;
+                        if (maxLen < 1.0 || maxLen < minLen)
+                        {
+                            current.MakeTap();
+                            result.Add(current);
+                            continue;
+                        }
+                        end = ChooseReleaseTail(current.Time, current.Time + minLen, current.Time + maxLen, b, events);
+                    }
+
+                    if (end - current.Time < 1)
+                    {
+                        current.MakeTap();
+                        result.Add(current);
+                    }
+                    else
+                    {
+                        result.Add(MakeHold(current, end));
+                    }
+                }
+            }
+
+            map.Objects = result;
+            map.SortObjects();
+        }
+
+        /// <summary>c table: 0 = 1/16 beat, 5 = 1/4 beat, 10 = 1 beat.</summary>
+        public static readonly double[] ReleaseFractions =
+        {
+            1.0 / 16, 1.0 / 12, 1.0 / 8, 1.0 / 6, 1.0 / 5,
+            1.0 / 4, 1.0 / 3, 1.0 / 2, 2.0 / 3, 3.0 / 4, 1.0
+        };
+
+        /// <summary>
+        /// Move the tail from the first global event after the head (b=0) to the point in the
+        /// allowed interval farthest from any global event (b=10).
+        /// </summary>
+        private static int ChooseReleaseTail(int start, double minPos, double maxPos, int b, int[] events)
+        {
+            double lo = Math.Max(start + 1.0, Math.Min(minPos, maxPos));
+            double hi = Math.Max(lo, Math.Max(minPos, maxPos));
+
+            double aligned = hi;
+            foreach (var t in events)
+            {
+                if (t > start && t >= lo && t <= hi)
+                {
+                    aligned = t;
+                    break;
+                }
+            }
+
+            double far = lo;
+            double best = -1;
+            var candidates = new List<double> { lo, hi };
+            for (int i = 0; i < events.Length; i++)
+            {
+                if (events[i] > lo && events[i] < hi) candidates.Add(events[i]);
+                if (i + 1 < events.Length && events[i] < hi && events[i + 1] > lo)
+                {
+                    double mid = (Math.Max(events[i], lo) + Math.Min(events[i + 1], hi)) / 2.0;
+                    candidates.Add(mid);
+                }
+            }
+            foreach (var candidate in candidates)
+            {
+                if (candidate < lo || candidate > hi) continue;
+                double nearest = double.MaxValue;
+                foreach (var t in events)
+                {
+                    double dist = Math.Abs(t - candidate);
+                    if (dist < nearest) nearest = dist;
+                    if (t > candidate && dist > nearest) break;
+                }
+                if (nearest > best)
+                {
+                    best = nearest;
+                    far = candidate;
+                }
+            }
+
+            double pos = aligned + (far - aligned) * (b / 10.0);
+            return (int)Math.Floor(pos + 0.5);
         }
 
         public static void SetDifficulty(OsuFile map, double? od, double? hp)
@@ -187,6 +340,7 @@ namespace OsuMapTools
                 case NoteMode.Invert: return "FULL LN";
                 case NoteMode.HoldOff: return "RICE";
                 case NoteMode.Release: return "Release";
+                case NoteMode.ShortLn: return "SHORT LN";
                 default: return "";
             }
         }
