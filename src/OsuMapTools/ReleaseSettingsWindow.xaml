@@ -64,7 +64,7 @@
 
         <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" TextWrapping="Wrap"
                    Foreground="{StaticResource Muted}" FontSize="10" Margin="0,0,0,8"
-                   Text="a：长面概率 = a/10；b：0 对齐相邻面头/面尾，10 最参差；c：短面最小长度 / 长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。" />
+                   Text="a：长面概率 = a/10；b：0 对齐相邻面头/面尾，10 最参差；c：短面最小长度 / 长面最大缝隙（0=1/16 拍，5=1/4 拍，10=1 拍）。所有长度按拍长计算，不按小节。" />
 
         <StackPanel Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal"
                     HorizontalAlignment="Right">

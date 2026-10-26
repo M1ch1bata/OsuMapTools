@@ -51,7 +51,7 @@
                     <CheckBox x:Name="FollowCheck" Content="跟随当前谱面" Foreground="{StaticResource Fg}"
                               FontSize="11" IsChecked="True"
                               Checked="FollowCheck_Changed" Unchecked="FollowCheck_Changed" />
-                    <TextBlock x:Name="TosuStatus" Text="" FontSize="10" Foreground="{StaticResource Muted}" Visibility="Collapsed" />
+                    <TextBlock x:Name="TosuStatus" Text="" FontSize="10" Foreground="{StaticResource Muted}" Visibility="Collapsed" IsHitTestVisible="False" />
                     <Button Content="选择谱面…" Click="Browse_Click" Padding="8,3" Margin="0,4,0,0" />
                 </StackPanel>
             </Grid>
@@ -134,7 +134,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="220" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="160" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
@@ -149,7 +149,7 @@
 
                 <TextBlock Grid.Column="2" x:Name="StrengthLabel" Text="缝隙" Foreground="{StaticResource Muted}"
                            VerticalAlignment="Center" Visibility="Collapsed" />
-                <ComboBox Grid.Column="3" x:Name="StrengthBox" Margin="5,0,0,0" SelectedIndex="1"
+                <ComboBox Grid.Column="3" x:Name="StrengthBox" Width="160" Margin="5,0,0,0" SelectedIndex="1"
                           SelectionChanged="Setting_Changed" Visibility="Collapsed">
                     <ComboBoxItem Content="松散（1/2 拍）" />
                     <ComboBoxItem Content="标准（1/4 拍）" />

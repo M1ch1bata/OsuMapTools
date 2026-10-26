@@ -148,14 +148,8 @@ namespace OsuMapTools
                 TosuStatus.Text = _tosuStatus;
                 return;
             }
-            if (!string.IsNullOrEmpty(_memStatus))
-                TosuStatus.Text = "内存 " + _memStatus + (string.IsNullOrEmpty(_tosuStatus) ? "" : " · " + _tosuStatus);
-            else
-                TosuStatus.Text = _tosuStatus;
-            if (string.IsNullOrWhiteSpace(TosuStatus.Text) && FollowCheck.IsChecked == true)
-                TosuStatus.Text = "跟随已启用";
-            TosuStatus.Visibility = string.IsNullOrWhiteSpace(TosuStatus.Text)
-                ? Visibility.Collapsed : Visibility.Visible;
+            // Keep the status line hidden; it used to squeeze the version/title area.
+            TosuStatus.Visibility = Visibility.Collapsed;
         }
 
         private void FollowCheck_Changed(object sender, RoutedEventArgs e)
