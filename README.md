@@ -58,6 +58,12 @@
 - 同名文件自动追加 ` (2)`，不会覆盖原谱面
 - 音频按需转码为 192 kbps MP3
 
+### 参数记忆
+
+- 勾选 **锁定参数** 后，切换谱面时保留当前的 OD / HP / 倍速，不再重置为谱面自带值
+- 上次使用的模式、强度、BPM 模式、OD / HP、输出目录等会保存到 `%LOCALAPPDATA%\OsuMapTools\settings.txt`，下次启动自动恢复
+- 命令行 `--generate` 既不应用也不写回这些设置，始终以谱面自带参数出发，保证批处理可复现
+
 ## 使用
 
 1. 从 [Releases](https://github.com/M1ch1bata/OsuMapTools/releases) 下载：

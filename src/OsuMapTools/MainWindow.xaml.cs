@@ -61,8 +61,15 @@ namespace OsuMapTools
         private readonly System.Threading.CancellationTokenSource _lifetime =
             new System.Threading.CancellationTokenSource();
 
-        public MainWindow()
+        /// <summary>True for --generate runs: settings are read, never written.</summary>
+        private readonly bool _headless;
+        private bool _settingsReady;
+
+        public MainWindow() : this(false) { }
+
+        public MainWindow(bool headless)
         {
+            _headless = headless;
             InitializeComponent();
             _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
             _debounce.Tick += async (_, __) => { _debounce.Stop(); await UpdatePreviewAsync(); };
@@ -75,8 +82,12 @@ namespace OsuMapTools
                 try { if (_tosu != null) _tosu.Dispose(); } catch { }
                 try { if (_analysis != null) _analysis.Close(); } catch { }
                 _debounce.Stop();
+                try { Settings.Flush(); } catch { }
                 Application.Current.Shutdown();
             };
+            // Headless runs ignore saved transforms (mode / rate / OD / HP) so that a CLI
+            // invocation behaves like a fresh window and stays reproducible.
+            if (!_headless) LoadSettings();
             OutputPathText.Text = "—";
         }
 
@@ -155,6 +166,7 @@ namespace OsuMapTools
         private void FollowCheck_Changed(object sender, RoutedEventArgs e)
         {
             if (FollowCheck == null) return;
+            PersistUi();
             if (FollowCheck.IsChecked != true)
             {
                 SchedulePreview();
@@ -204,6 +216,7 @@ namespace OsuMapTools
         {
             _outputRoot = string.IsNullOrWhiteSpace(root) ? null : root;
             UpdateOutputBox();
+            PersistUi();
         }
 
         public void SetBpmMode(double bpm)
@@ -260,13 +273,17 @@ namespace OsuMapTools
                 LnText.Visibility = Visibility.Collapsed;
                 MsdText.Text = "—";
 
-                RateBox.Text = "1.0";
-                BpmBox.Text = GetBaseBpm().ToString("0.#", CultureInfo.InvariantCulture);
+                // "锁定参数" keeps the user's OD / HP / speed across beatmap switches (issue #1).
+                if (!LockParams)
+                {
+                    RateBox.Text = "1.0";
+                    BpmBox.Text = GetBaseBpm().ToString("0.#", CultureInfo.InvariantCulture);
 
-                var od = _sourceMap.Number("OverallDifficulty");
-                var hp = _sourceMap.Number("HPDrainRate");
-                OdBox.Text = od.HasValue ? od.Value.ToString("0.##", CultureInfo.InvariantCulture) : "";
-                HpBox.Text = hp.HasValue ? hp.Value.ToString("0.##", CultureInfo.InvariantCulture) : "";
+                    var od = _sourceMap.Number("OverallDifficulty");
+                    var hp = _sourceMap.Number("HPDrainRate");
+                    OdBox.Text = od.HasValue ? od.Value.ToString("0.##", CultureInfo.InvariantCulture) : "";
+                    HpBox.Text = hp.HasValue ? hp.Value.ToString("0.##", CultureInfo.InvariantCulture) : "";
+                }
 
                 _isMania = _sourceMap.Mode == 3;
                 UpdateBpmEnabled();
@@ -444,6 +461,7 @@ namespace OsuMapTools
             UpdateStrengthVisibility();
             UpdateGenerateState();
             SchedulePreview();
+            PersistUi();
         }
 
         /// <summary>True when at least one transformation (mode / speed / OD / HP / output location) was requested.</summary>
@@ -589,6 +607,7 @@ namespace OsuMapTools
             UpdateStrengthVisibility();
             UpdateGenerateState();
             SchedulePreview();
+            PersistUi();
         }
 
         private void ReleaseSettings_Click(object sender, RoutedEventArgs e)
@@ -601,6 +620,7 @@ namespace OsuMapTools
                 _releaseC = dlg.C;
                 UpdateGenerateState();
                 SchedulePreview();
+                PersistUi();
             }
         }
 
@@ -626,6 +646,7 @@ namespace OsuMapTools
             UpdateStrengthVisibility();
             UpdateGenerateState();
             SchedulePreview();
+            PersistUi();
         }
 
         private void ShortBox_LostFocus(object sender, RoutedEventArgs e)
@@ -642,6 +663,7 @@ namespace OsuMapTools
             UpdateStrengthVisibility();
             UpdateGenerateState();
             SchedulePreview();
+            PersistUi();
         }
 
         private int GetCustomGap()
@@ -670,6 +692,7 @@ namespace OsuMapTools
             UpdateStrengthVisibility();
             UpdateGenerateState();
             SchedulePreview();
+            PersistUi();
         }
 
         private string GetStrengthVariant()
@@ -830,6 +853,96 @@ namespace OsuMapTools
             return string.Join(" ", parts);
         }
 
+        /// <summary>
+        /// "Lock parameters" keeps OD / HP / speed when a new beatmap is loaded instead of
+        /// adopting the map's own values. Headless CLI runs always start from the map's values
+        /// so that --generate stays deterministic.
+        /// </summary>
+        private bool LockParams
+        {
+            get { return LockParamsCheck != null && LockParamsCheck.IsChecked == true && !_headless; }
+        }
+
+        private void LockParamsCheck_Changed(object sender, RoutedEventArgs e)
+        {
+            PersistUi();
+        }
+
+        /// <summary>
+        /// Restores the last session from settings.txt. Fields are only overwritten when the file
+        /// actually holds a value, so an empty OD / HP keeps meaning "leave the map's value".
+        /// </summary>
+        private void LoadSettings()
+        {
+            try
+            {
+                FollowCheck.IsChecked = Settings.GetBool("global.follow", true);
+                PitchCheck.IsChecked = Settings.GetBool("global.keepPitch", true);
+                LockParamsCheck.IsChecked = Settings.GetBool("global.lockParams", false);
+                SetOutputRoot(Settings.Get("global.outputRoot", ""));
+
+                var mode = Settings.GetInt("edit.mode", (int)NoteMode.Keep);
+                if (mode >= 0 && mode < ModeBox.Items.Count) ModeBox.SelectedIndex = mode;
+                var strength = Settings.GetInt("edit.strength", 1);
+                if (strength >= 0 && strength < StrengthBox.Items.Count) StrengthBox.SelectedIndex = strength;
+                BpmCheck.IsChecked = Settings.GetBool("edit.bpmMode", false);
+
+                RestoreBox(RateBox, "edit.rate");
+                RestoreBox(BpmBox, "edit.bpm");
+                RestoreBox(OdBox, "edit.od");
+                RestoreBox(HpBox, "edit.hp");
+                RestoreBox(CustomGapBox, "edit.customGap");
+                RestoreBox(ShortLenBox, "edit.shortLen");
+                RestoreBox(ShortGapBox, "edit.shortGap");
+
+                _releaseA = Math.Min(10, Math.Max(0, Settings.GetInt("edit.releaseA", _releaseA)));
+                _releaseB = Math.Min(10, Math.Max(0, Settings.GetInt("edit.releaseB", _releaseB)));
+                _releaseC = Math.Min(10, Math.Max(0, Settings.GetInt("edit.releaseC", _releaseC)));
+            }
+            catch { }
+
+            _settingsReady = true;
+            UpdateBpmEnabled();
+            UpdateEffectiveRate();
+            UpdateStrengthVisibility();
+            UpdateGenerateState();
+            UpdateOutputBox();
+        }
+
+        private static void RestoreBox(System.Windows.Controls.TextBox box, string key)
+        {
+            if (box == null) return;
+            var value = Settings.Get(key, null);
+            if (value != null) box.Text = value;
+        }
+
+        /// <summary>Writes the current editor state back to settings.txt (debounced inside Settings).</summary>
+        private void PersistUi()
+        {
+            if (!_settingsReady) return;
+            try
+            {
+                Settings.SetBool("global.follow", FollowCheck.IsChecked == true);
+                Settings.SetBool("global.keepPitch", PitchCheck.IsChecked == true);
+                Settings.SetBool("global.lockParams", LockParamsCheck.IsChecked == true);
+                Settings.Set("global.outputRoot", _outputRoot ?? "");
+                Settings.SetInt("edit.mode", ModeBox.SelectedIndex);
+                Settings.SetInt("edit.strength", StrengthBox.SelectedIndex);
+                Settings.SetBool("edit.bpmMode", BpmCheck.IsChecked == true);
+                Settings.Set("edit.rate", RateBox.Text ?? "");
+                Settings.Set("edit.bpm", BpmBox.Text ?? "");
+                Settings.Set("edit.od", OdBox.Text ?? "");
+                Settings.Set("edit.hp", HpBox.Text ?? "");
+                Settings.Set("edit.customGap", CustomGapBox.Text ?? "");
+                Settings.Set("edit.shortLen", ShortLenBox.Text ?? "");
+                Settings.Set("edit.shortGap", ShortGapBox.Text ?? "");
+                Settings.SetInt("edit.releaseA", _releaseA);
+                Settings.SetInt("edit.releaseB", _releaseB);
+                Settings.SetInt("edit.releaseC", _releaseC);
+            }
+            catch { }
+        }
+
         private void BrowseOutput_Click(object sender, RoutedEventArgs e)
         {
             using (var dlg = new System.Windows.Forms.FolderBrowserDialog())
@@ -841,6 +954,7 @@ namespace OsuMapTools
                     UpdateOutputBox();
                     UpdateGenerateState();
                     SchedulePreview();
+                    PersistUi();
                 }
             }
         }
@@ -851,6 +965,7 @@ namespace OsuMapTools
             UpdateOutputBox();
             UpdateGenerateState();
             SchedulePreview();
+            PersistUi();
         }
 
         private void Batch_Click(object sender, RoutedEventArgs e)

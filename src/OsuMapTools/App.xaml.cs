@@ -30,6 +30,8 @@ namespace OsuMapTools
             };
 
             var headless = e.Args.Any(a => a.Equals("--generate", StringComparison.OrdinalIgnoreCase));
+            // Headless runs read the user's saved preferences but never rewrite them.
+            Settings.Init(headless);
             string cliError;
             if (headless && !ValidateCli(e.Args, out cliError))
             {
@@ -65,11 +67,18 @@ namespace OsuMapTools
             }
         }
 
+        protected override void OnExit(ExitEventArgs e)
+        {
+            try { Settings.Dispose(); } catch { }
+            base.OnExit(e);
+        }
+
         private void Run(StartupEventArgs e)
         {
             base.OnStartup(e);
 
-            var window = new MainWindow();
+            var headless = e.Args.Any(a => a.Equals("--generate", StringComparison.OrdinalIgnoreCase));
+            var window = new MainWindow(headless);
             MainWindow = window;
 
             if (e.Args.Any(a => a.Equals("--generate", StringComparison.OrdinalIgnoreCase)))
